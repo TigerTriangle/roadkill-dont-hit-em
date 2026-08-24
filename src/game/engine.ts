@@ -11,6 +11,9 @@ import {
   HORN_COOLDOWN,
   HORN_RANGE,
   HORSESHOE_RATE,
+  IDLE_CREEP,
+  IDLE_GRACE,
+  IDLE_LUNGE,
   INVULN_TIME,
   LANE,
   LEVELS,
@@ -39,6 +42,7 @@ import { GameAudio } from "./audio";
 import { Input } from "./input";
 import { loadSave, writeSave } from "./save";
 import type {
+  Ambush,
   Animal,
   AnimalKind,
   Floater,
@@ -103,11 +107,14 @@ export class Sim {
   nextPropY = 40;
   nextId = 1;
   lastGasY = -400;
-  overReason: "crash" | "gas" | null = null;
+  overReason: "crash" | "gas" | "raccoon" | null = null;
   level: LevelDef = LEVELS[0];
   tutorialDone = false;
+  ambush: Ambush | null = null;
   private dryNotified = false;
   private wreckT = 0;
+  private idleT = 0;
+  private ambushKillT = 0;
   private levelFlash = 0;
   private hint = "";
   private tutorialSpawned = new Set<number>();
@@ -192,6 +199,7 @@ export class Sim {
         this.syncLevel(true);
       },
       skipLesson: () => this.skipLesson(false),
+      getAmbush: () => (this.ambush ? (this.ambush.phase === "lunge" ? 2 : 1) : 0),
       setSteer: (v: number) => {
         this.input.injectedSteer = v;
       },
@@ -282,6 +290,9 @@ export class Sim {
     this.overReason = null;
     this.dryNotified = false;
     this.wreckT = 0;
+    this.idleT = 0;
+    this.ambushKillT = 0;
+    this.ambush = null;
     this.level = LEVELS[0];
     this.levelFlash = 0;
     this.hint = "";
@@ -361,6 +372,7 @@ export class Sim {
       tutorial: this.mode === "play" && this.level.id === 0,
       tutorialDone: this.tutorialDone,
       overReason: this.overReason,
+      ambush: this.ambush ? (this.ambush.phase === "lunge" ? 2 : 1) : 0,
     };
     const key = JSON.stringify(snap);
     if (key === this.lastHud) return;
@@ -443,6 +455,11 @@ export class Sim {
         this.gameOver("crash");
         return;
       }
+    }
+
+    if (this.mode === "play" && !wrecking && this.level.id !== 0 && p.gas > 0 && !this.overReason) {
+      this.updateAmbush(dt);
+      if (this.mode !== "play") return;
     }
 
     this.spawnAhead();
@@ -847,6 +864,46 @@ export class Sim {
     });
   }
 
+  private updateAmbush(dt: number) {
+    const p = this.player;
+    if (this.ambush?.phase === "lunge") {
+      this.ambush.x = p.x;
+      this.ambush.y = p.y + 12;
+      this.ambush.t += dt;
+      this.ambushKillT -= dt;
+      if (this.ambushKillT <= 0) this.gameOver("raccoon");
+      return;
+    }
+    if (p.speed > STOP_EPS) {
+      this.idleT = 0;
+      this.ambush = null;
+      return;
+    }
+    this.idleT += dt;
+    if (this.idleT < IDLE_GRACE) return;
+    if (!this.ambush) {
+      const side = p.x >= 0 ? 1 : -1;
+      const x = side * (ROAD_HALF + 58);
+      this.ambush = { x, y: p.y - 8, fromX: x, t: 0, phase: "creep" };
+    }
+    const a = this.ambush;
+    a.t += dt;
+    a.y = p.y - 6;
+    const u = Math.min(1, (this.idleT - IDLE_GRACE) / IDLE_CREEP);
+    const e = u * u;
+    a.x = a.fromX + (p.x - a.fromX) * e;
+    if (u >= 1) {
+      a.phase = "lunge";
+      a.x = p.x;
+      a.y = p.y + 12;
+      this.ambushKillT = IDLE_LUNGE;
+      this.shake = 1;
+      this.flash = 0.22;
+      this.audio.thud();
+      this.floaters.push({ x: p.x, y: p.y + 54, text: "RABID", life: 0.9 });
+    }
+  }
+
   private beginWreck() {
     if (this.wreckT > 0 || this.mode !== "play" || this.level.id === 0) return;
     this.player.damage = MAX_DAMAGE;
@@ -874,7 +931,7 @@ export class Sim {
     }
   }
 
-  private gameOver(reason: "crash" | "gas" = "crash") {
+  private gameOver(reason: "crash" | "gas" | "raccoon" = "crash") {
     this.mode = "over";
     this.overReason = reason;
     this.audio.setHorn(false);

@@ -39,6 +39,7 @@ const idleHud: HudSnap = {
   tutorial: false,
   tutorialDone: false,
   overReason: null,
+  ambush: 0,
 };
 
 export function RoadkillGame() {
@@ -262,19 +263,31 @@ export function RoadkillGame() {
         </p>
       )}
 
-      {hud.mode === "play" && hud.damage >= 0.75 && !hud.wrecking && !hud.lowFuel && hud.gas > 0 && hud.levelFlash === 0 && !hud.hint && (
+      {hud.mode === "play" && hud.damage >= 0.75 && !hud.wrecking && !hud.lowFuel && hud.gas > 0 && hud.levelFlash === 0 && !hud.hint && hud.ambush === 0 && (
         <p className="pointer-events-none absolute left-1/2 top-1/3 z-10 -translate-x-1/2 font-display text-3xl font-semibold tracking-[0.2em] text-danger">
           HEAVY DAMAGE
         </p>
       )}
 
-      {hud.mode === "play" && hud.shield > 0 && !hud.stopped && hud.gas > 0 && !hud.lowFuel && hud.damage < 0.75 && !hud.wrecking && hud.levelFlash === 0 && !hud.hint && (
+      {hud.mode === "play" && hud.shield > 0 && !hud.stopped && hud.gas > 0 && !hud.lowFuel && hud.damage < 0.75 && !hud.wrecking && hud.levelFlash === 0 && !hud.hint && hud.ambush === 0 && (
         <p className="pointer-events-none absolute left-1/2 top-1/3 z-10 -translate-x-1/2 font-display text-3xl font-semibold tracking-[0.2em] text-fg">
           STEEL
         </p>
       )}
 
-      {hud.mode === "play" && hud.stopped && hud.gas > 0 && !hud.wrecking && (
+      {hud.mode === "play" && hud.ambush === 2 && (
+        <p className="pointer-events-none absolute left-1/2 top-1/3 z-10 -translate-x-1/2 font-display text-3xl font-semibold tracking-[0.2em] text-danger">
+          IT GOT IN
+        </p>
+      )}
+
+      {hud.mode === "play" && hud.ambush === 1 && hud.horn === 0 && (
+        <p className="pointer-events-none absolute left-1/2 top-1/3 z-10 -translate-x-1/2 font-display text-3xl font-semibold tracking-[0.2em] text-danger">
+          IN THE DITCH
+        </p>
+      )}
+
+      {hud.mode === "play" && hud.stopped && hud.gas > 0 && !hud.wrecking && hud.ambush === 0 && (
         <p className="pointer-events-none absolute left-1/2 top-1/3 z-10 -translate-x-1/2 font-display text-3xl font-semibold tracking-[0.2em] text-fg">
           STOPPED
         </p>
@@ -348,9 +361,17 @@ export function RoadkillGame() {
             )}
             {hud.mode === "over" && (
               <MenuCard
-                title={hud.overReason === "gas" ? "Out of gas" : "Totaled"}
+                title={
+                  hud.overReason === "gas" ? "Out of gas" : hud.overReason === "raccoon" ? "It got in" : "Totaled"
+                }
                 body={`${hud.score} pts · night ${hud.level} · ${hud.distance} mi${hud.newBest ? " · new best" : ""}`}
-                image={hud.overReason === "crash" ? "/wreck.jpg" : undefined}
+                image={
+                  hud.overReason === "crash"
+                    ? "/wreck.jpg"
+                    : hud.overReason === "raccoon"
+                      ? "/raccoon-cab.jpg"
+                      : undefined
+                }
                 primary="Drive again"
                 onPrimary={start}
                 secondary="Title"

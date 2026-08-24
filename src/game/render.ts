@@ -87,6 +87,7 @@ export class Renderer {
     this.drawLights(ctx, sim, originX, viewW);
     this.drawParticles(ctx, sim, toS);
     this.drawTruck(ctx, sim, atlas, toS);
+    this.drawAmbush(ctx, sim, atlas, toS);
     this.drawSmoke(ctx, sim, toS);
     this.drawFloaters(ctx, sim, toS);
 
@@ -350,6 +351,29 @@ export class Renderer {
     drawFrame(ctx, atlas.truck, frame, -w / 2, -h + 18, w, h);
     ctx.restore();
     ctx.globalAlpha = 1;
+  }
+
+  private drawAmbush(
+    ctx: CanvasRenderingContext2D,
+    sim: Sim,
+    atlas: Atlas,
+    toS: (x: number, y: number) => { sx: number; sy: number },
+  ) {
+    const a = sim.ambush;
+    if (!a) return;
+    const { sx, sy } = toS(a.x, a.y);
+    const lunge = a.phase === "lunge";
+    const w = lunge ? 72 : 52;
+    const h = lunge ? 52 : 38;
+    const frame = Math.floor(a.t * (lunge ? 14 : 7)) % 4;
+    const flip = a.fromX > 0;
+    ctx.save();
+    if (lunge) {
+      ctx.shadowColor = "rgba(232,80,60,0.75)";
+      ctx.shadowBlur = 22;
+    }
+    drawFrame(ctx, atlas.raccoon, frame, sx - w / 2, sy - h * 0.85, w, h, flip);
+    ctx.restore();
   }
 
   private drawSmoke(

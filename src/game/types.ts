@@ -54,6 +54,14 @@ export interface Particle {
   kind: "dust" | "spark" | "moth" | "leaf" | "smoke";
 }
 
+export interface Ambush {
+  x: number;
+  y: number;
+  fromX: number;
+  t: number;
+  phase: "creep" | "lunge";
+}
+
 export interface Floater {
   x: number;
   y: number;
@@ -98,7 +106,8 @@ export interface HudSnap {
   hint: string;
   tutorial: boolean;
   tutorialDone: boolean;
-  overReason: "crash" | "gas" | null;
+  overReason: "crash" | "gas" | "raccoon" | null;
+  ambush: 0 | 1 | 2;
 }
 
 export type ControlsProbe = {
@@ -115,6 +124,7 @@ export type ControlsProbe = {
   getLevel?: () => number;
   setLevel?: (n: number) => void;
   skipLesson?: () => void;
+  getAmbush?: () => number;
   setSteer: (v: number) => void;
   setKeys: (codes: string[]) => void;
 };
