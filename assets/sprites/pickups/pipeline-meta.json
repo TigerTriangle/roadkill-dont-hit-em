@@ -1,0 +1,28 @@
+{
+  "atlas": "pickups",
+  "order": [
+    "coffee",
+    "horseshoe",
+    "tire",
+    "gas-can"
+  ],
+  "grid": "2x2 left-to-right, top-to-bottom",
+  "roles": {
+    "coffee": "invincible (enamel mug)",
+    "horseshoe": "bonus points",
+    "tire": "repair 25% damage",
+    "gas-can": "fill tank"
+  },
+  "sources": {
+    "coffee": "original sheet bottom-right mug (b01b00d7)",
+    "horseshoe": "original sheet top-right",
+    "tire": "original sheet bottom-left",
+    "gas-can": "assets/sprites/gas-can/clean.png"
+  },
+  "retired": [
+    "thermos",
+    "rusty-x-can-mislabelled-as-coffee"
+  ],
+  "cell_size": 256,
+  "runtime": "/sprites/pickups.png"
+}

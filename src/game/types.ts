@@ -1,0 +1,126 @@
+export type Mode = "boot" | "title" | "play" | "pause" | "over";
+
+export type AnimalKind = "deer" | "raccoon" | "possum" | "turkey";
+export type PickupKind = "coffee" | "horseshoe" | "tire" | "gas";
+export type PropKind = "pine" | "oak" | "mailbox";
+
+export type AnimalState = "cross" | "freeze" | "bolt";
+
+export interface Animal {
+  id: number;
+  kind: AnimalKind;
+  x: number;
+  y: number;
+  px: number;
+  py: number;
+  vx: number;
+  facing: 1 | -1;
+  state: AnimalState;
+  freezeT: number;
+  t: number;
+  hw: number;
+  hh: number;
+  scored: boolean;
+  alive: boolean;
+}
+
+export interface Pickup {
+  id: number;
+  kind: PickupKind;
+  x: number;
+  y: number;
+  alive: boolean;
+  t: number;
+}
+
+export interface Scenery {
+  id: number;
+  kind: PropKind;
+  x: number;
+  y: number;
+  scale: number;
+  flip: boolean;
+  alive: boolean;
+}
+
+export interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  max: number;
+  size: number;
+  kind: "dust" | "spark" | "moth" | "leaf" | "smoke";
+}
+
+export interface Floater {
+  x: number;
+  y: number;
+  text: string;
+  life: number;
+}
+
+export interface Player {
+  x: number;
+  y: number;
+  px: number;
+  py: number;
+  vx: number;
+  speed: number;
+  damage: number;
+  invuln: number;
+  hornCd: number;
+  hornFlash: number;
+  bounce: number;
+  gas: number;
+}
+
+export interface HudSnap {
+  mode: Mode;
+  score: number;
+  distance: number;
+  high: number;
+  horn: number;
+  shield: number;
+  muted: boolean;
+  combo: number;
+  newBest: boolean;
+  speed: number;
+  stopped: boolean;
+  gas: number;
+  lowFuel: boolean;
+  damage: number;
+  wrecking: boolean;
+  level: number;
+  levelName: string;
+  levelFlash: number;
+  hint: string;
+  tutorial: boolean;
+  tutorialDone: boolean;
+  overReason: "crash" | "gas" | null;
+}
+
+export type ControlsProbe = {
+  getX: () => number;
+  getYaw: () => number;
+  getSpeed: () => number;
+  getHornFlash?: () => number;
+  getGas?: () => number;
+  setGas?: (v: number) => void;
+  getDamage?: () => number;
+  setDamage?: (v: number) => void;
+  getInvuln?: () => number;
+  setInvuln?: (v: number) => void;
+  getLevel?: () => number;
+  setLevel?: (n: number) => void;
+  skipLesson?: () => void;
+  setSteer: (v: number) => void;
+  setKeys: (codes: string[]) => void;
+};
+
+declare global {
+  interface Window {
+    __controlsTest?: ControlsProbe;
+  }
+}
