@@ -854,9 +854,6 @@ export class Sim {
       const hit = aabb(p.x, (py0 + py1) / 2, PLAYER_HW, (py1 - py0) / 2 + PLAYER_HH, a.x, a.y, a.hw, a.hh);
       if (!hit) continue;
       a.alive = false;
-      this.burst(a.x, a.y, "dust", 18);
-      this.burst(a.x, a.y, "leaf", 8);
-      this.audio.thud();
       this.combo = 0;
       const pair = this.stats.hits[a.kind];
       this.stats = {
@@ -869,6 +866,18 @@ export class Sim {
           },
         },
       };
+      if (p.steel) {
+        this.burst(a.x, a.y, "spark", 20);
+        this.audio.clang();
+        this.shake = Math.min(1, this.shake + 0.16);
+        this.hitstop = 0.02;
+        this.score += 60;
+        this.floaters.push({ x: a.x, y: a.y, text: "NO DENT +60", life: 0.7 });
+        return;
+      }
+      this.burst(a.x, a.y, "dust", 18);
+      this.burst(a.x, a.y, "leaf", 8);
+      this.audio.thud();
       if (shielded) {
         this.shake = Math.min(1, this.shake + 0.28);
         this.hitstop = 0.03;

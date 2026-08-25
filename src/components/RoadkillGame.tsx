@@ -6,6 +6,7 @@ import {
   ChevronUp,
   Megaphone,
   Pause,
+  Share2,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import { Sim } from "@/game/engine";
 import { Renderer } from "@/game/render";
 import type { HudSnap, RunStats } from "@/game/types";
 import { emptyRun } from "@/game/types";
+import { overImage, overTitle, shareDrive } from "@/game/share";
 import { cn } from "@/lib/utils";
 
 const idleHud: HudSnap = {
@@ -56,6 +58,7 @@ export function RoadkillGame() {
   const [coarse, setCoarse] = useState(false);
   const [settings, setSettings] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia("(pointer: coarse)");
@@ -139,6 +142,7 @@ export function RoadkillGame() {
   const start = useCallback(() => {
     setSettings(false);
     setStatsOpen(false);
+    setShareMsg(null);
     simRef.current?.drive(false);
     wrapRef.current?.focus();
   }, []);
@@ -146,9 +150,22 @@ export function RoadkillGame() {
   const startLesson = useCallback(() => {
     setSettings(false);
     setStatsOpen(false);
+    setShareMsg(null);
     simRef.current?.drive(true);
     wrapRef.current?.focus();
   }, []);
+
+  const shareThisDrive = useCallback(async () => {
+    const result = await shareDrive({
+      score: hud.score,
+      level: hud.level,
+      distance: hud.distance,
+      reason: hud.overReason,
+      stats: hud.stats,
+    });
+    setShareMsg(result === "shared" ? "Shared" : result === "copied" ? "Copied to clipboard" : "Could not share");
+    window.setTimeout(() => setShareMsg(null), 2200);
+  }, [hud.score, hud.level, hud.distance, hud.overReason, hud.stats]);
 
   const overlay = hud.mode === "title" || hud.mode === "boot" || hud.mode === "over" || hud.mode === "pause";
 
@@ -412,28 +429,23 @@ export function RoadkillGame() {
             )}
             {hud.mode === "over" && !statsOpen && (
               <MenuCard
-                title={
-                  hud.overReason === "gas" ? "Out of gas" : hud.overReason === "raccoon" ? "It got in" : "Totaled"
-                }
+                title={overTitle(hud.overReason)}
                 body={`${hud.score} pts · night ${hud.level} · ${formatMiles(hud.distance)} mi${hud.newBest ? " · new best" : ""}`}
-                image={
-                  hud.overReason === "crash"
-                    ? "/wreck.jpg"
-                    : hud.overReason === "raccoon"
-                      ? "/raccoon-cab.jpg"
-                      : hud.overReason === "gas"
-                        ? "/walk-gas.jpg"
-                        : undefined
-                }
+                image={overImage(hud.overReason) ?? undefined}
+                badge
                 primary="Drive again"
                 onPrimary={start}
                 secondary="Stats"
                 onSecondary={() => setStatsOpen(true)}
+                share
+                onShare={shareThisDrive}
                 tertiary="Title"
                 onTertiary={() => {
                   setStatsOpen(false);
+                  setShareMsg(null);
                   simRef.current?.toTitle();
                 }}
+                note={shareMsg}
               />
             )}
             {hud.mode === "over" && statsOpen && (
@@ -442,7 +454,10 @@ export function RoadkillGame() {
                 level={hud.level}
                 distance={hud.distance}
                 stats={hud.stats}
+                reason={hud.overReason}
                 onBack={() => setStatsOpen(false)}
+                onShare={shareThisDrive}
+                shareMsg={shareMsg}
               />
             )}
           </div>
@@ -642,31 +657,42 @@ function MenuCard({
   title,
   body,
   image,
+  badge,
   primary,
   onPrimary,
   secondary,
   onSecondary,
+  share,
+  onShare,
   tertiary,
   onTertiary,
+  note,
 }: {
   title: string;
   body: string;
   image?: string;
+  badge?: boolean;
   primary: string;
   onPrimary: () => void;
   secondary: string;
   onSecondary: () => void;
+  share?: boolean;
+  onShare?: () => void | Promise<void>;
   tertiary?: string;
   onTertiary?: () => void;
+  note?: string | null;
 }) {
   return (
     <div className="flex flex-col gap-5">
       {image && (
-        <img
-          src={image}
-          alt=""
-          className="aspect-video w-full rounded-lg object-cover outline outline-1 -outline-offset-1 outline-fg/10"
-        />
+        <div className="relative overflow-hidden rounded-lg outline outline-1 -outline-offset-1 outline-fg/10">
+          <img src={image} alt="" className="aspect-video w-full object-cover" />
+          {badge && (
+            <span className="absolute right-0 top-0 bg-fg px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-bg">
+              Badge of honor
+            </span>
+          )}
+        </div>
       )}
       <div>
         <h2 className="font-display text-5xl leading-none tracking-[0.06em]">{title}</h2>
@@ -679,12 +705,19 @@ function MenuCard({
         <Button variant="outline" className="w-full" onClick={onSecondary}>
           {secondary}
         </Button>
+        {share && onShare && (
+          <Button variant="outline" className="w-full gap-2" onClick={() => void onShare()}>
+            <Share2 className="size-4" />
+            Share
+          </Button>
+        )}
         {tertiary && onTertiary && (
           <Button variant="outline" className="w-full" onClick={onTertiary}>
             {tertiary}
           </Button>
         )}
       </div>
+      {note && <p className="text-center text-xs font-semibold uppercase tracking-[0.16em] text-muted">{note}</p>}
     </div>
   );
 }
@@ -829,20 +862,26 @@ function StatsCard({
   level,
   distance,
   stats,
+  reason,
   onBack,
+  onShare,
+  shareMsg,
 }: {
   score: number;
   level: number;
   distance: number;
   stats: RunStats;
+  reason: HudSnap["overReason"];
   onBack: () => void;
+  onShare: () => void | Promise<void>;
+  shareMsg?: string | null;
 }) {
   return (
     <div className="flex flex-col gap-5">
       <div>
         <h2 className="font-display text-5xl leading-none tracking-[0.06em]">This drive</h2>
         <p className="mt-3 text-sm text-muted">
-          {score} pts · night {level} · {formatMiles(distance)} mi
+          {score} pts · night {level} · {formatMiles(distance)} mi · {overTitle(reason)}
         </p>
       </div>
       <HitGrid stats={stats.hits} />
@@ -862,9 +901,18 @@ function StatsCard({
           { label: "Near misses", value: stats.near },
         ]}
       />
-      <Button variant="outline" className="w-full" onClick={onBack}>
-        Back
-      </Button>
+      <div className="flex flex-col gap-2">
+        <Button variant="outline" className="w-full gap-2" onClick={() => void onShare()}>
+          <Share2 className="size-4" />
+          Share
+        </Button>
+        <Button variant="outline" className="w-full" onClick={onBack}>
+          Back
+        </Button>
+      </div>
+      {shareMsg && (
+        <p className="text-center text-xs font-semibold uppercase tracking-[0.16em] text-muted">{shareMsg}</p>
+      )}
     </div>
   );
 }

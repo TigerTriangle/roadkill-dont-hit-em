@@ -309,6 +309,46 @@ export class GameAudio {
     src.stop(t + 0.2);
   }
 
+  clang() {
+    if (!this.ctx || !this.sfx) return;
+    this.resume();
+    const ctx = this.ctx;
+    const sfx = this.sfx;
+    const t = ctx.currentTime;
+    const ping = (freq: number, type: OscillatorType, peak: number, dur: number) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t);
+      o.frequency.exponentialRampToValueAtTime(freq * 0.72, t + dur);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g);
+      g.connect(sfx);
+      o.start(t);
+      o.stop(t + dur + 0.02);
+    };
+    ping(1760, "triangle", 0.16, 0.16);
+    ping(2489, "square", 0.07, 0.1);
+    ping(880, "triangle", 0.1, 0.2);
+    const buf = this.noiseBuffer();
+    if (!buf) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const ng = ctx.createGain();
+    const f = ctx.createBiquadFilter();
+    f.type = "highpass";
+    f.frequency.value = 2200;
+    ng.gain.setValueAtTime(0.14, t);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+    src.connect(f);
+    f.connect(ng);
+    ng.connect(sfx);
+    src.start(t);
+    src.stop(t + 0.1);
+  }
+
   snarl(intensity = 0.6) {
     if (!this.ctx || !this.sfx) return;
     this.resume();
