@@ -82,6 +82,7 @@ export interface Player {
   hornFlash: number;
   bounce: number;
   gas: number;
+  steel: boolean;
 }
 
 export interface HudSnap {

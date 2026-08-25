@@ -6,6 +6,7 @@ export type Sheet = {
 
 export type Atlas = {
   truck: Sheet;
+  truckGuard: Sheet;
   deerWalk: Sheet;
   deerFreeze: Sheet;
   raccoon: Sheet;
@@ -35,6 +36,7 @@ function sheet(img: HTMLImageElement, cols: number, rows: number): Sheet {
 export async function loadAtlas(): Promise<Atlas> {
   const [
     truck,
+    truckGuard,
     deerWalk,
     deerFreeze,
     raccoon,
@@ -47,6 +49,7 @@ export async function loadAtlas(): Promise<Atlas> {
     mailbox,
   ] = await Promise.all([
     loadImage("/sprites/truck.png?v=topdown1"),
+    loadImage("/sprites/truck-guard.png?v=1"),
     loadImage("/sprites/deer-walk.png"),
     loadImage("/sprites/deer-freeze.png"),
     loadImage("/sprites/raccoon.png"),
@@ -60,6 +63,7 @@ export async function loadAtlas(): Promise<Atlas> {
   ]);
   return {
     truck: sheet(truck, 2, 2),
+    truckGuard: sheet(truckGuard, 2, 2),
     deerWalk: sheet(deerWalk, 2, 2),
     deerFreeze: sheet(deerFreeze, 2, 2),
     raccoon: sheet(raccoon, 2, 2),

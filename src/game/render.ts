@@ -1,9 +1,9 @@
 import {
   ANIMAL,
-  INVULN_TIME,
   PICKUP_DRAW,
   PLAYER_SCREEN_Y,
   ROAD_HALF,
+  STEEL_WARN,
   VH,
   VW,
 } from "./constants";
@@ -338,17 +338,21 @@ export class Renderer {
     const p = sim.player;
     const { sx, sy } = toS(p.x, p.y);
     const frame = Math.floor(p.bounce) % 4;
-    const blink = p.invuln > 0 && Math.floor(p.invuln * 18) % 2 === 0;
+    const steelLook = p.steel && p.invuln > STEEL_WARN;
+    const blink = p.invuln > 0 && !steelLook && Math.floor(p.invuln * 18) % 2 === 0;
     if (blink) ctx.globalAlpha = 0.4;
     const w = 56;
     const h = 112;
     ctx.save();
     ctx.translate(sx, sy);
-    if (p.invuln > 0) {
+    if (steelLook) {
+      ctx.shadowColor = "rgba(243,230,200,0.7)";
+      ctx.shadowBlur = 24;
+    } else if (p.invuln > 0) {
       ctx.shadowColor = "rgba(243,230,200,0.6)";
-      ctx.shadowBlur = p.invuln > INVULN_TIME ? 24 : 14;
+      ctx.shadowBlur = 14;
     }
-    drawFrame(ctx, atlas.truck, frame, -w / 2, -h + 18, w, h);
+    drawFrame(ctx, steelLook ? atlas.truckGuard : atlas.truck, frame, -w / 2, -h + 18, w, h);
     ctx.restore();
     ctx.globalAlpha = 1;
   }

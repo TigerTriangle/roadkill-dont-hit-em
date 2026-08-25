@@ -15,6 +15,9 @@ export class GameAudio {
   private hornVoices: HornVoice[] = [];
   private hornWanted = false;
   private hornUntil = 0;
+  private steelOn = false;
+  private banjoNext = 0;
+  private banjoStep = 0;
   muted = false;
   unlocked = false;
 
@@ -31,7 +34,7 @@ export class GameAudio {
       this.engineFilter = this.ctx.createBiquadFilter();
       this.master.gain.value = this.muted ? 0 : 0.78;
       this.sfx.gain.value = 1;
-      this.music.gain.value = 0.22;
+      this.music.gain.value = 0;
       this.engineGain.gain.value = 0;
       this.engineFilter.type = "lowpass";
       this.engineFilter.frequency.value = 280;
@@ -97,10 +100,94 @@ export class GameAudio {
     let vol = (idle + n * 0.16) * (0.35 + 0.65 * Math.max(fuel, speed > 8 ? 0.25 : 0));
     if (playing && fuel <= 0) vol = moving > 0 ? 0.03 : 0.008;
     else if (playing && fuel < 0.2) vol *= 0.55 + 0.45 * Math.abs(Math.sin(t * 14));
+    if (this.steelOn) vol *= 0.5;
     this.engineGain.gain.setTargetAtTime(vol, t, 0.08);
     this.engineFilter.frequency.setTargetAtTime(140 + moving * 80 + n * 480, t, 0.08);
     this.engineOsc.frequency.setTargetAtTime(36 + moving * 12 + n * 70, t, 0.08);
     this.tickHorn();
+    this.tickBanjo();
+  }
+
+  setSteel(on: boolean) {
+    if (!this.ctx || !this.music) {
+      this.steelOn = on;
+      return;
+    }
+    this.resume();
+    const t = this.ctx.currentTime;
+    if (on && !this.steelOn) {
+      this.banjoNext = t + 0.02;
+      this.banjoStep = 0;
+      this.music.gain.cancelScheduledValues(t);
+      this.music.gain.setValueAtTime(Math.max(this.music.gain.value, 0.0001), t);
+      this.music.gain.exponentialRampToValueAtTime(0.72, t + 0.06);
+      this.strumSteel(t + 0.02);
+    } else if (!on && this.steelOn) {
+      this.music.gain.cancelScheduledValues(t);
+      this.music.gain.setValueAtTime(Math.max(this.music.gain.value, 0.0001), t);
+      this.music.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    }
+    this.steelOn = on;
+    if (on) this.tickBanjo();
+  }
+
+  private tickBanjo() {
+    if (!this.steelOn || !this.ctx || !this.music) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const step = 60 / 152 / 4;
+    const riff = [
+      392.0, 293.66, 392.0, 493.88, 587.33, 493.88, 392.0, 293.66, 246.94, 293.66, 392.0, 493.88, 392.0, 293.66, 196.0, 246.94,
+    ];
+    if (this.banjoNext < t) {
+      const skip = Math.ceil((t - this.banjoNext) / step);
+      this.banjoStep += skip;
+      this.banjoNext += skip * step;
+    }
+    while (this.banjoNext < t + 0.22) {
+      const freq = riff[this.banjoStep % riff.length];
+      this.pluckBanjo(freq, this.banjoNext, this.banjoStep % 4 === 0);
+      this.banjoStep += 1;
+      this.banjoNext += step;
+    }
+  }
+
+  private strumSteel(when: number) {
+    for (const freq of [196.0, 293.66, 392.0, 493.88]) {
+      this.pluckBanjo(freq, when, freq < 250);
+    }
+  }
+
+  private pluckBanjo(freq: number, when: number, bass: boolean) {
+    if (!this.ctx || !this.music) return;
+    const ctx = this.ctx;
+    const start = Math.max(when, ctx.currentTime + 0.002);
+    try {
+      const osc = ctx.createOscillator();
+      const twang = ctx.createOscillator();
+      const g = ctx.createGain();
+      const filt = ctx.createBiquadFilter();
+      osc.type = "triangle";
+      osc.frequency.value = freq;
+      twang.type = "sawtooth";
+      twang.frequency.value = freq * 2;
+      filt.type = "highpass";
+      filt.frequency.value = bass ? 180 : 420;
+      const peak = bass ? 0.28 : 0.2;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(peak, start + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + (bass ? 0.36 : 0.22));
+      osc.connect(filt);
+      twang.connect(filt);
+      filt.connect(g);
+      g.connect(this.music);
+      osc.start(start);
+      twang.start(start);
+      osc.stop(start + 0.4);
+      twang.stop(start + 0.22);
+    } catch {
+      /* start time already passed */
+    }
   }
 
   /** Hold Space for a sustained air horn. A tap still plays a full 0.4s blast. */
@@ -261,6 +348,7 @@ export class GameAudio {
 
   destroy() {
     try {
+      this.steelOn = false;
       this.ensureHornOff();
       this.engineSrc?.stop();
       this.engineOsc?.stop();

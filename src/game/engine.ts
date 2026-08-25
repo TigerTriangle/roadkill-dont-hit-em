@@ -30,6 +30,7 @@ import {
   SAVE_VERSION,
   SHIELD_TIME,
   START_GAS,
+  STEEL_WARN,
   STEER_ACCEL,
   STEER_SPEED,
   STEP,
@@ -150,6 +151,7 @@ export class Sim {
       hornFlash: 0,
       bounce: 0,
       gas: START_GAS,
+      steel: false,
     };
   }
 
@@ -189,6 +191,7 @@ export class Sim {
       getInvuln: () => this.player.invuln,
       setInvuln: (v: number) => {
         this.player.invuln = Math.max(0, v);
+        this.player.steel = v > INVULN_TIME;
       },
       getLevel: () => this.level.id,
       setLevel: (n: number) => {
@@ -344,6 +347,7 @@ export class Sim {
       }
       this.acc -= STEP;
     }
+    this.audio.setSteel(this.mode === "play" && this.player.steel && this.player.invuln > STEEL_WARN);
     this.audio.setEngine(this.player.speed, this.mode === "play" || this.mode === "title", this.player.gas);
     this.emit();
   }
@@ -355,7 +359,7 @@ export class Sim {
       distance: Math.floor(this.player.y / 18),
       high: this.high,
       horn: this.player.hornFlash > 0.05 ? 1 : 0,
-      shield: this.player.invuln > INVULN_TIME ? 1 : 0,
+      shield: this.player.steel && this.player.invuln > STEEL_WARN ? 1 : 0,
       muted: this.muted,
       combo: this.combo,
       newBest: this.newBest,
@@ -442,6 +446,7 @@ export class Sim {
     if (this.mode === "play") this.syncLevel();
     if (p.speed > STOP_EPS) p.bounce += dt * (6 + p.speed * 0.02);
     p.invuln = Math.max(0, p.invuln - dt);
+    if (p.invuln <= 0) p.steel = false;
     p.hornCd = Math.max(0, p.hornCd - dt);
     p.hornFlash = Math.max(0, p.hornFlash - dt);
     this.levelFlash = Math.max(0, this.levelFlash - dt);
@@ -757,6 +762,7 @@ export class Sim {
     const p = this.player;
     if (k.kind === "coffee") {
       p.invuln = SHIELD_TIME;
+      p.steel = true;
       this.score += 120;
       this.floaters.push({ x: k.x, y: k.y, text: "STEEL +120", life: 0.9 });
     } else if (k.kind === "horseshoe") {
@@ -909,6 +915,7 @@ export class Sim {
     this.player.damage = MAX_DAMAGE;
     this.wreckT = WRECK_TIME;
     this.player.invuln = WRECK_TIME;
+    this.player.steel = false;
     this.shake = 1;
     this.flash = 0.28;
     this.floaters.push({ x: this.player.x, y: this.player.y + 70, text: "TOTALED", life: 1.2 });

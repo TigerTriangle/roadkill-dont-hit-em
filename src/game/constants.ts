@@ -27,6 +27,7 @@ export const IDLE_CREEP = 3.4;
 export const IDLE_LUNGE = 0.55;
 export const INVULN_TIME = 1.45;
 export const SHIELD_TIME = 6;
+export const STEEL_WARN = 1;
 export const HORN_COOLDOWN = 1.8;
 export const HORN_RANGE = 260;
 
