@@ -46,8 +46,11 @@ export function shareText(
       const name = k[0].toUpperCase() + k.slice(1);
       return `${name} ${h.body}(${h.steel})`;
     })
-    .filter(Boolean)
-    .join(" · ");
+    .filter(Boolean);
+  if (stats.potholes.body || stats.potholes.steel) {
+    hits.push(`Pothole ${stats.potholes.body}(${stats.potholes.steel})`);
+  }
+  const hitLine = hits.join(" · ");
   const picks = (["coffee", "horseshoe", "tire", "gas"] as const)
     .map((k) => (stats.pickups[k] ? `${k} ${stats.pickups[k]}` : null))
     .filter(Boolean)
@@ -60,7 +63,7 @@ export function shareText(
     quip,
     `${overTitle(reason)} · ${score} pts · Night ${level} · ${formatMiles(distance)} mi`,
   ];
-  if (hits) lines.push(`Hits: ${hits}`);
+  if (hitLine) lines.push(`Hits: ${hitLine}`);
   if (picks) lines.push(`Loot: ${picks}`);
   lines.push(`Play: ${GAME_URL}`);
   return lines.join("\n");

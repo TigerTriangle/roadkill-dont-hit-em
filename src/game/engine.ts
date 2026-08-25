@@ -28,6 +28,9 @@ import {
   PLAYER_DRAG,
   PLAYER_HH,
   PLAYER_HW,
+  POTHOLE_HH,
+  POTHOLE_HW,
+  potholeGap,
   ROAD_HALF,
   SAVE_VERSION,
   SHIELD_TIME,
@@ -57,6 +60,7 @@ import type {
   Pickup,
   PickupKind,
   Player,
+  Pothole,
   RunStats,
   Scenery,
 } from "./types";
@@ -98,6 +102,7 @@ export class Sim {
   player: Player = this.freshPlayer();
   animals: Animal[] = [];
   pickups: Pickup[] = [];
+  potholes: Pothole[] = [];
   scenery: Scenery[] = [];
   particles: Particle[] = [];
   floaters: Floater[] = [];
@@ -112,6 +117,7 @@ export class Sim {
   rng = mulberry32(1);
   nextSpawnY = 180;
   nextPropY = 40;
+  nextPotholeY = 1400;
   nextId = 1;
   lastGasY = -400;
   overReason: "crash" | "gas" | "raccoon" | null = null;
@@ -214,6 +220,7 @@ export class Sim {
       },
       skipLesson: () => this.skipLesson(false),
       getAmbush: () => (this.ambush ? (this.ambush.phase === "lunge" ? 2 : 1) : 0),
+      getPotholes: () => this.potholes.filter((h) => h.alive).length,
       setSteer: (v: number) => {
         this.input.injectedSteer = v;
       },
@@ -252,6 +259,7 @@ export class Sim {
     this.player.y = end;
     this.player.py = end;
     this.nextSpawnY = end + 260;
+    this.nextPotholeY = end + 1400;
     this.lastGasY = end;
     this.tutorialSpawned.clear();
     this.hint = "";
@@ -297,6 +305,7 @@ export class Sim {
     this.player = this.freshPlayer();
     this.animals = [];
     this.pickups = [];
+    this.potholes = [];
     this.scenery = [];
     this.particles = [];
     this.floaters = [];
@@ -310,6 +319,7 @@ export class Sim {
     this.time = 0;
     this.nextSpawnY = attract ? 80 : 280;
     this.nextPropY = 20;
+    this.nextPotholeY = attract ? 1e9 : 99999;
     this.nextId = 1;
     this.lastGasY = attract ? 99999 : -400;
     this.overReason = null;
@@ -493,6 +503,7 @@ export class Sim {
     }
 
     this.spawnAhead();
+    this.spawnPotholes();
     this.spawnProps();
     this.updateAnimals(dt);
     this.updatePickups(dt);
@@ -507,6 +518,7 @@ export class Sim {
     this.scenery = this.scenery.filter((s) => s.y > p.y - 140 && s.alive);
     this.animals = this.animals.filter((a) => a.alive && a.y > p.y - 120);
     this.pickups = this.pickups.filter((k) => k.alive && k.y > p.y - 80);
+    this.potholes = this.potholes.filter((h) => h.alive && h.y > p.y - 80);
   }
 
   private attractSteerTowardGap(dt: number) {
@@ -554,6 +566,8 @@ export class Sim {
         this.spawnPickup(beat.y, s.lane ?? 1, s.kind);
       } else if (s.kind === "cross") {
         this.spawnCross(beat.y, "possum", (s.from ?? -1) as 1 | -1);
+      } else if (s.kind === "pothole") {
+        this.spawnPothole(beat.y, s.lane ?? 1);
       } else {
         this.spawnFreeze(beat.y, s.lane ?? -1, 2.8);
       }
@@ -692,6 +706,53 @@ export class Sim {
       t: this.rng() * Math.PI * 2,
     });
     if (kind === "gas") this.lastGasY = y;
+  }
+
+  private spawnPothole(y: number, lane: number) {
+    const wobble = (this.rng() - 0.5) * 16;
+    this.potholes.push({
+      id: this.nextId++,
+      x: lane * LANE + wobble,
+      y,
+      hw: POTHOLE_HW + this.rng() * 6,
+      hh: POTHOLE_HH + this.rng() * 4,
+      rot: (this.rng() - 0.5) * 0.5,
+      alive: true,
+    });
+  }
+
+  private spawnPotholes() {
+    if (this.mode !== "play" || this.level.id === 0) return;
+    const p = this.player;
+    const look = p.y + p.speed * 1.85 + 220;
+    while (this.nextPotholeY < look) {
+      const y = this.nextPotholeY;
+      const first = this.rng() < 0.5 ? 1 : -1;
+      let placed = false;
+      for (const lane of [first, -first]) {
+        if (this.holeClear(y, lane)) {
+          this.spawnPothole(y, lane);
+          placed = true;
+          break;
+        }
+      }
+      this.nextPotholeY += placed
+        ? potholeGap(this.level.id) * (0.82 + this.rng() * 0.45)
+        : 140;
+    }
+  }
+
+  private holeClear(y: number, lane: number) {
+    const x = lane * LANE;
+    for (const a of this.animals) {
+      if (!a.alive) continue;
+      if (Math.abs(a.y - y) < 90 && Math.abs(a.x - x) < 48) return false;
+    }
+    for (const k of this.pickups) {
+      if (!k.alive) continue;
+      if (Math.abs(k.y - y) < 70 && Math.abs(k.x - x) < 40) return false;
+    }
+    return true;
   }
 
   private spawnProp(y: number) {
@@ -885,18 +946,57 @@ export class Sim {
         this.floaters.push({ x: a.x, y: a.y, text: "CLEAR +60", life: 0.65 });
         return;
       }
-      this.shake = Math.min(1, this.shake + 0.55);
-      this.hitstop = 0.07;
-      this.flash = 0.16;
-      p.damage = clamp(p.damage + HIT_DAMAGE, 0, MAX_DAMAGE);
-      p.invuln = INVULN_TIME;
-      p.speed *= 0.62;
-      this.floaters.push({ x: a.x, y: a.y, text: "HIT +25%", life: 0.7 });
-      if (p.damage >= MAX_DAMAGE) {
-        if (this.level.id === 0) p.damage = 0.75;
-        else this.beginWreck();
-      }
+      this.applyDent(a.x, a.y);
       return;
+    }
+    for (const hole of this.potholes) {
+      if (!hole.alive) continue;
+      const hit = aabb(p.x, (py0 + py1) / 2, PLAYER_HW, (py1 - py0) / 2 + PLAYER_HH, hole.x, hole.y, hole.hw, hole.hh);
+      if (!hit) continue;
+      hole.alive = false;
+      this.combo = 0;
+      this.stats = {
+        ...this.stats,
+        potholes: {
+          body: this.stats.potholes.body + (p.steel || shielded ? 0 : 1),
+          steel: this.stats.potholes.steel + (p.steel ? 1 : 0),
+        },
+      };
+      if (p.steel) {
+        this.burst(hole.x, hole.y, "spark", 14);
+        this.audio.clang();
+        this.shake = Math.min(1, this.shake + 0.16);
+        this.hitstop = 0.02;
+        this.score += 60;
+        this.floaters.push({ x: hole.x, y: hole.y, text: "NO DENT +60", life: 0.7 });
+        return;
+      }
+      this.burst(hole.x, hole.y, "dust", 16);
+      this.audio.thud();
+      if (shielded) {
+        this.shake = Math.min(1, this.shake + 0.28);
+        this.hitstop = 0.03;
+        this.score += 60;
+        this.floaters.push({ x: hole.x, y: hole.y, text: "CLEAR +60", life: 0.65 });
+        return;
+      }
+      this.applyDent(hole.x, hole.y);
+      return;
+    }
+  }
+
+  private applyDent(x: number, y: number) {
+    const p = this.player;
+    this.shake = Math.min(1, this.shake + 0.55);
+    this.hitstop = 0.07;
+    this.flash = 0.16;
+    p.damage = clamp(p.damage + HIT_DAMAGE, 0, MAX_DAMAGE);
+    p.invuln = INVULN_TIME;
+    p.speed *= 0.62;
+    this.floaters.push({ x, y, text: "HIT +25%", life: 0.7 });
+    if (p.damage >= MAX_DAMAGE) {
+      if (this.level.id === 0) p.damage = 0.75;
+      else this.beginWreck();
     }
   }
 
@@ -909,6 +1009,9 @@ export class Sim {
     if (fromLesson && next.id > 0 && !this.tutorialDone) {
       this.tutorialDone = true;
       this.persist();
+    }
+    if (fromLesson && next.id > 0) {
+      this.nextPotholeY = Math.max(this.nextPotholeY, this.player.y + 1400);
     }
     if (quiet || this.mode !== "play") return;
     this.levelFlash = 1.7;

@@ -827,7 +827,7 @@ function StatGrid({
   );
 }
 
-function HitGrid({ stats }: { stats: RunStats["hits"] }) {
+function HitGrid({ stats, potholes }: { stats: RunStats["hits"]; potholes: RunStats["potholes"] }) {
   const rows: { label: string; kind: keyof RunStats["hits"] }[] = [
     { label: "Deer", kind: "deer" },
     { label: "Raccoon", kind: "raccoon" },
@@ -852,6 +852,12 @@ function HitGrid({ stats }: { stats: RunStats["hits"] }) {
             </div>
           );
         })}
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-muted">Pothole</dt>
+          <dd className="tabular-nums text-fg">
+            {potholes.body} ({potholes.steel})
+          </dd>
+        </div>
       </dl>
       <p className="mt-2 text-xs leading-relaxed text-muted">Steel is the coffee rush — no dent in the truck.</p>
     </div>
@@ -885,7 +891,7 @@ function StatsCard({
           {score} pts · night {level} · {formatMiles(distance)} mi · {overTitle(reason)}
         </p>
       </div>
-      <HitGrid stats={stats.hits} />
+      <HitGrid stats={stats.hits} potholes={stats.potholes} />
       <StatGrid
         title="Picked up"
         rows={[

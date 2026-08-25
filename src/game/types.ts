@@ -8,6 +8,7 @@ export type HitPair = { body: number; steel: number };
 
 export type RunStats = {
   hits: Record<AnimalKind, HitPair>;
+  potholes: HitPair;
   pickups: Record<PickupKind, number>;
   honks: number;
   near: number;
@@ -17,6 +18,7 @@ export function emptyRun(): RunStats {
   const hit = (): HitPair => ({ body: 0, steel: 0 });
   return {
     hits: { deer: hit(), raccoon: hit(), possum: hit(), turkey: hit() },
+    potholes: hit(),
     pickups: { coffee: 0, horseshoe: 0, tire: 0, gas: 0 },
     honks: 0,
     near: 0,
@@ -50,6 +52,16 @@ export interface Pickup {
   y: number;
   alive: boolean;
   t: number;
+}
+
+export interface Pothole {
+  id: number;
+  x: number;
+  y: number;
+  hw: number;
+  hh: number;
+  rot: number;
+  alive: boolean;
 }
 
 export interface Scenery {
@@ -147,6 +159,7 @@ export type ControlsProbe = {
   setLevel?: (n: number) => void;
   skipLesson?: () => void;
   getAmbush?: () => number;
+  getPotholes?: () => number;
   setSteer: (v: number) => void;
   setKeys: (codes: string[]) => void;
 };

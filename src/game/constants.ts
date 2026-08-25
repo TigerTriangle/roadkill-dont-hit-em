@@ -73,7 +73,7 @@ export const LEVELS: LevelDef[] = [
 export type TutorialBeat = {
   y: number;
   prompt: string;
-  spawn?: { kind: "gas" | "coffee" | "tire" | "cross" | "freeze"; lane?: number; from?: 1 | -1 };
+  spawn?: { kind: "gas" | "coffee" | "tire" | "cross" | "freeze" | "pothole"; lane?: number; from?: 1 | -1 };
 };
 
 export const TUTORIAL_BEATS: TutorialBeat[] = [
@@ -81,8 +81,9 @@ export const TUTORIAL_BEATS: TutorialBeat[] = [
   { y: 720, prompt: "Siphon a can", spawn: { kind: "gas", lane: 1 } },
   { y: 1320, prompt: "Miss the animal", spawn: { kind: "cross", from: -1 } },
   { y: 1920, prompt: "Honk — Space", spawn: { kind: "freeze", lane: -1 } },
-  { y: 2520, prompt: "Coffee steels you", spawn: { kind: "coffee", lane: 1 } },
-  { y: 3100, prompt: "A spare patches the body", spawn: { kind: "tire", lane: -1 } },
+  { y: 2280, prompt: "Swerve the pothole", spawn: { kind: "pothole", lane: 1 } },
+  { y: 2680, prompt: "Coffee steels you", spawn: { kind: "coffee", lane: -1 } },
+  { y: 3180, prompt: "A spare patches the body", spawn: { kind: "tire", lane: 1 } },
   { y: 3520, prompt: "Night 1 ahead" },
 ];
 
@@ -122,3 +123,16 @@ export const ANIMAL = {
 
 export const PICKUP_DRAW = 44;
 export const PICKUP_R = 18;
+
+export const POTHOLE_HW = 26;
+export const POTHOLE_HH = 16;
+
+export function potholeGap(levelId: number) {
+  if (levelId <= 0) return 99999;
+  if (levelId === 1) return 2600;
+  if (levelId === 2) return 2000;
+  if (levelId === 3) return 1500;
+  if (levelId === 4) return 1180;
+  if (levelId === 5) return 960;
+  return 800;
+}

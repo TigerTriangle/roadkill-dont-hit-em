@@ -82,6 +82,7 @@ export class Renderer {
     this.drawSky(ctx, viewW, VH);
     this.drawForest(ctx, sim, atlas, viewW, originX, camY);
     this.drawRoad(ctx, originX, camY, viewW);
+    this.drawPotholes(ctx, sim, atlas, toS);
     this.drawPickups(ctx, sim, atlas, toS);
     this.drawAnimals(ctx, sim, atlas, toS);
     this.drawLights(ctx, sim, originX, viewW);
@@ -208,6 +209,26 @@ export class Renderer {
     ctx.fillRect(left, 0, 10, VH);
     ctx.fillRect(right - 10, 0, 10, VH);
     void viewW;
+  }
+
+  private drawPotholes(
+    ctx: CanvasRenderingContext2D,
+    sim: Sim,
+    atlas: Atlas,
+    toS: (x: number, y: number) => { sx: number; sy: number },
+  ) {
+    const img = atlas.pothole;
+    for (const hole of sim.potholes) {
+      if (!hole.alive) continue;
+      const { sx, sy } = toS(hole.x, hole.y);
+      const dw = hole.hw * 3.4;
+      const dh = hole.hh * 3.6;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(hole.rot);
+      ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+      ctx.restore();
+    }
   }
 
   private drawPickups(

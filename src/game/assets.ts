@@ -17,6 +17,7 @@ export type Atlas = {
   pine: HTMLImageElement;
   oak: HTMLImageElement;
   mailbox: HTMLImageElement;
+  pothole: HTMLImageElement;
 };
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -47,6 +48,7 @@ export async function loadAtlas(): Promise<Atlas> {
     pine,
     oak,
     mailbox,
+    pothole,
   ] = await Promise.all([
     loadImage("/sprites/truck.png?v=topdown1"),
     loadImage("/sprites/truck-guard.png?v=1"),
@@ -60,6 +62,7 @@ export async function loadAtlas(): Promise<Atlas> {
     loadImage("/sprites/pine.png"),
     loadImage("/sprites/oak.png"),
     loadImage("/sprites/mailbox.png"),
+    loadImage("/sprites/pothole.png?v=bite1"),
   ]);
   return {
     truck: sheet(truck, 2, 2),
@@ -74,6 +77,7 @@ export async function loadAtlas(): Promise<Atlas> {
     pine,
     oak,
     mailbox,
+    pothole,
   };
 }
 
