@@ -4,6 +4,25 @@ export type AnimalKind = "deer" | "raccoon" | "possum" | "turkey";
 export type PickupKind = "coffee" | "horseshoe" | "tire" | "gas";
 export type PropKind = "pine" | "oak" | "mailbox";
 
+export type HitPair = { body: number; steel: number };
+
+export type RunStats = {
+  hits: Record<AnimalKind, HitPair>;
+  pickups: Record<PickupKind, number>;
+  honks: number;
+  near: number;
+};
+
+export function emptyRun(): RunStats {
+  const hit = (): HitPair => ({ body: 0, steel: 0 });
+  return {
+    hits: { deer: hit(), raccoon: hit(), possum: hit(), turkey: hit() },
+    pickups: { coffee: 0, horseshoe: 0, tire: 0, gas: 0 },
+    honks: 0,
+    near: 0,
+  };
+}
+
 export type AnimalState = "cross" | "freeze" | "bolt";
 
 export interface Animal {
@@ -110,6 +129,7 @@ export interface HudSnap {
   overReason: "crash" | "gas" | "raccoon" | null;
   ambush: 0 | 1 | 2;
   mix: { horn: number; sfx: number; music: number; engine: number };
+  stats: RunStats;
 }
 
 export type ControlsProbe = {

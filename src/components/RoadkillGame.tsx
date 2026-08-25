@@ -11,10 +11,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { loadAtlas, type Atlas } from "@/game/assets";
-import { MIX_DEFAULT } from "@/game/constants";
+import { MIX_DEFAULT, formatMiles } from "@/game/constants";
 import { Sim } from "@/game/engine";
 import { Renderer } from "@/game/render";
-import type { HudSnap } from "@/game/types";
+import type { HudSnap, RunStats } from "@/game/types";
+import { emptyRun } from "@/game/types";
 import { cn } from "@/lib/utils";
 
 const idleHud: HudSnap = {
@@ -42,6 +43,7 @@ const idleHud: HudSnap = {
   overReason: null,
   ambush: 0,
   mix: { ...MIX_DEFAULT },
+  stats: emptyRun(),
 };
 
 export function RoadkillGame() {
@@ -53,6 +55,7 @@ export function RoadkillGame() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [coarse, setCoarse] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia("(pointer: coarse)");
@@ -135,12 +138,14 @@ export function RoadkillGame() {
 
   const start = useCallback(() => {
     setSettings(false);
+    setStatsOpen(false);
     simRef.current?.drive(false);
     wrapRef.current?.focus();
   }, []);
 
   const startLesson = useCallback(() => {
     setSettings(false);
+    setStatsOpen(false);
     simRef.current?.drive(true);
     wrapRef.current?.focus();
   }, []);
@@ -195,7 +200,7 @@ export function RoadkillGame() {
                 {hud.score.toString().padStart(5, "0")}
               </p>
               <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted">
-                {hud.level === 0 ? "Lesson" : `Night ${hud.level}`} · {hud.distance} mi ·{" "}
+                {hud.level === 0 ? "Lesson" : `Night ${hud.level}`} · {formatMiles(hud.distance)} mi ·{" "}
                 {hud.stopped ? "stopped" : `${hud.speed} mph`}
               </p>
             </div>
@@ -379,23 +384,39 @@ export function RoadkillGame() {
                 onBack={() => setSettings(false)}
               />
             )}
-            {hud.mode === "over" && (
+            {hud.mode === "over" && !statsOpen && (
               <MenuCard
                 title={
                   hud.overReason === "gas" ? "Out of gas" : hud.overReason === "raccoon" ? "It got in" : "Totaled"
                 }
-                body={`${hud.score} pts · night ${hud.level} · ${hud.distance} mi${hud.newBest ? " · new best" : ""}`}
+                body={`${hud.score} pts · night ${hud.level} · ${formatMiles(hud.distance)} mi${hud.newBest ? " · new best" : ""}`}
                 image={
                   hud.overReason === "crash"
                     ? "/wreck.jpg"
                     : hud.overReason === "raccoon"
                       ? "/raccoon-cab.jpg"
-                      : undefined
+                      : hud.overReason === "gas"
+                        ? "/walk-gas.jpg"
+                        : undefined
                 }
                 primary="Drive again"
                 onPrimary={start}
-                secondary="Title"
-                onSecondary={() => simRef.current?.toTitle()}
+                secondary="Stats"
+                onSecondary={() => setStatsOpen(true)}
+                tertiary="Title"
+                onTertiary={() => {
+                  setStatsOpen(false);
+                  simRef.current?.toTitle();
+                }}
+              />
+            )}
+            {hud.mode === "over" && statsOpen && (
+              <StatsCard
+                score={hud.score}
+                level={hud.level}
+                distance={hud.distance}
+                stats={hud.stats}
+                onBack={() => setStatsOpen(false)}
               />
             )}
           </div>
@@ -712,20 +733,134 @@ function SettingsCard({
         <p className="mt-3 text-sm text-muted">Horn, banjo, crashes, and the rumble under the hood.</p>
       </div>
       <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+            {muted ? "Sound off" : "Sound on"}
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!muted}
+            aria-label={muted ? "Sound off" : "Sound on"}
+            onClick={onMute}
+            className={cn(
+              "relative h-7 w-12 rounded-full transition-colors duration-(--motion-fast) ease-(--ease-out) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              muted ? "bg-border" : "bg-fg",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute top-0.5 size-6 rounded-full transition-transform duration-(--motion-fast) ease-(--ease-out)",
+                muted ? "left-0.5 bg-muted" : "left-0.5 translate-x-5 bg-bg",
+              )}
+            />
+          </button>
+        </div>
         <MixSlider label="Horn" value={mix.horn} onChange={(v) => onMix("horn", v)} />
         <MixSlider label="Effects" value={mix.sfx} onChange={(v) => onMix("sfx", v)} />
         <MixSlider label="Music" value={mix.music} onChange={(v) => onMix("music", v)} />
         <MixSlider label="Engine" value={mix.engine} onChange={(v) => onMix("engine", v)} />
       </div>
-      <button
-        type="button"
-        onClick={onMute}
-        className="self-start text-xs font-semibold uppercase tracking-[0.16em] text-muted"
-      >
-        {muted ? "Muted" : "Sound on"}
-      </button>
       <Button variant="outline" className="w-full" onClick={onBack}>
         Done
+      </Button>
+    </div>
+  );
+}
+
+function StatGrid({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: { label: string; value: number }[];
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">{title}</p>
+      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-baseline justify-between gap-3">
+            <dt className="text-muted">{row.label}</dt>
+            <dd className="tabular-nums text-fg">{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function HitGrid({ stats }: { stats: RunStats["hits"] }) {
+  const rows: { label: string; kind: keyof RunStats["hits"] }[] = [
+    { label: "Deer", kind: "deer" },
+    { label: "Raccoon", kind: "raccoon" },
+    { label: "Possum", kind: "possum" },
+    { label: "Turkey", kind: "turkey" },
+  ];
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Hit</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Damage (steel)</p>
+      </div>
+      <dl className="mt-2 flex flex-col gap-1.5 text-sm">
+        {rows.map((row) => {
+          const pair = stats[row.kind];
+          return (
+            <div key={row.kind} className="flex items-baseline justify-between gap-3">
+              <dt className="text-muted">{row.label}</dt>
+              <dd className="tabular-nums text-fg">
+                {pair.body} ({pair.steel})
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
+      <p className="mt-2 text-xs leading-relaxed text-muted">Steel is the coffee rush — no dent in the truck.</p>
+    </div>
+  );
+}
+
+function StatsCard({
+  score,
+  level,
+  distance,
+  stats,
+  onBack,
+}: {
+  score: number;
+  level: number;
+  distance: number;
+  stats: RunStats;
+  onBack: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <h2 className="font-display text-5xl leading-none tracking-[0.06em]">This drive</h2>
+        <p className="mt-3 text-sm text-muted">
+          {score} pts · night {level} · {formatMiles(distance)} mi
+        </p>
+      </div>
+      <HitGrid stats={stats.hits} />
+      <StatGrid
+        title="Picked up"
+        rows={[
+          { label: "Coffee", value: stats.pickups.coffee },
+          { label: "Horseshoe", value: stats.pickups.horseshoe },
+          { label: "Tire", value: stats.pickups.tire },
+          { label: "Gas", value: stats.pickups.gas },
+        ]}
+      />
+      <StatGrid
+        title="Also"
+        rows={[
+          { label: "Honks", value: stats.honks },
+          { label: "Near misses", value: stats.near },
+        ]}
+      />
+      <Button variant="outline" className="w-full" onClick={onBack}>
+        Back
       </Button>
     </div>
   );

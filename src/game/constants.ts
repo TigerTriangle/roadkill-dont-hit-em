@@ -10,6 +10,7 @@ export const SHOULDER = 168;
 
 export const BASE_SPEED = 230;
 export const MAX_SPEED = 470;
+export const SPEED_TO_MPH = 0.22;
 export const STEER_SPEED = 320;
 export const STEER_ACCEL = 1400;
 export const PLAYER_DRAG = 8;
@@ -22,8 +23,8 @@ export const PLAYER_HH = 30;
 export const HIT_DAMAGE = 0.25;
 export const MAX_DAMAGE = 1;
 export const WRECK_TIME = 1.2;
-export const IDLE_GRACE = 2.5;
-export const IDLE_CREEP = 3.4;
+export const IDLE_GRACE = 0;
+export const IDLE_CREEP = 2.15;
 export const IDLE_LUNGE = 0.55;
 export const INVULN_TIME = 1.45;
 export const SHIELD_TIME = 6;
@@ -90,6 +91,14 @@ export function levelAt(y: number): LevelDef {
     if (y < level.until) return level;
   }
   return LEVELS[LEVELS.length - 1];
+}
+
+export function worldMiles(y: number) {
+  return (Math.max(0, y) * SPEED_TO_MPH) / 3600;
+}
+
+export function formatMiles(mi: number) {
+  return mi.toFixed(1);
 }
 
 export const SAVE_KEY = "roadkill-save-v1";

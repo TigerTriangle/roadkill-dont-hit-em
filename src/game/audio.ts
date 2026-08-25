@@ -309,6 +309,51 @@ export class GameAudio {
     src.stop(t + 0.2);
   }
 
+  snarl(intensity = 0.6) {
+    if (!this.ctx || !this.sfx) return;
+    this.resume();
+    const ctx = this.ctx;
+    const sfx = this.sfx;
+    const t = ctx.currentTime;
+    const k = Math.max(0.2, Math.min(1, intensity));
+    const growl = ctx.createOscillator();
+    const growl2 = ctx.createOscillator();
+    const gg = ctx.createGain();
+    growl.type = "sawtooth";
+    growl2.type = "square";
+    growl.frequency.setValueAtTime(92, t);
+    growl.frequency.exponentialRampToValueAtTime(48 + k * 30, t + 0.22);
+    growl2.frequency.setValueAtTime(140, t);
+    growl2.frequency.exponentialRampToValueAtTime(70, t + 0.18);
+    gg.gain.setValueAtTime(0.0001, t);
+    gg.gain.exponentialRampToValueAtTime(0.16 * k, t + 0.02);
+    gg.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+    growl.connect(gg);
+    growl2.connect(gg);
+    gg.connect(sfx);
+    growl.start(t);
+    growl2.start(t);
+    growl.stop(t + 0.34);
+    growl2.stop(t + 0.28);
+    const buf = this.noiseBuffer();
+    if (!buf) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const ng = ctx.createGain();
+    const f = ctx.createBiquadFilter();
+    f.type = "bandpass";
+    f.frequency.value = 1100 + k * 700;
+    f.Q.value = 1.4;
+    ng.gain.setValueAtTime(0.0001, t);
+    ng.gain.exponentialRampToValueAtTime(0.28 * k, t + 0.018);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.26);
+    src.connect(f);
+    f.connect(ng);
+    ng.connect(sfx);
+    src.start(t);
+    src.stop(t + 0.28);
+  }
+
   pickup() {
     if (!this.ctx || !this.sfx) return;
     const ctx = this.ctx;

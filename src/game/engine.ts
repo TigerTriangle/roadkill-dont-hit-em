@@ -37,9 +37,11 @@ import {
   STEER_SPEED,
   STEP,
   STOP_EPS,
+  SPEED_TO_MPH,
   THROTTLE_BONUS,
   TUTORIAL_BEATS,
   WRECK_TIME,
+  worldMiles,
 } from "./constants";
 import { GameAudio } from "./audio";
 import { Input } from "./input";
@@ -55,8 +57,10 @@ import type {
   Pickup,
   PickupKind,
   Player,
+  RunStats,
   Scenery,
 } from "./types";
+import { emptyRun } from "./types";
 
 function mulberry32(seed: number) {
   let a = seed >>> 0;
@@ -86,7 +90,7 @@ function aabb(
 }
 
 function toMph(speed: number) {
-  return Math.round(speed * 0.22);
+  return Math.round(speed * SPEED_TO_MPH);
 }
 
 export class Sim {
@@ -118,6 +122,7 @@ export class Sim {
   private wreckT = 0;
   private idleT = 0;
   private ambushKillT = 0;
+  private snarlT = 0;
   private levelFlash = 0;
   private hint = "";
   private tutorialSpawned = new Set<number>();
@@ -126,6 +131,7 @@ export class Sim {
   audio = new GameAudio();
   muted = false;
   mix: Mix = { ...MIX_DEFAULT };
+  stats: RunStats = emptyRun();
   onHud?: (h: HudSnap) => void;
   private lastHud = "";
   private attractSteer = 0;
@@ -297,6 +303,7 @@ export class Sim {
     this.score = 0;
     this.combo = 0;
     this.newBest = false;
+    this.stats = emptyRun();
     this.shake = 0;
     this.hitstop = 0;
     this.flash = 0;
@@ -310,6 +317,7 @@ export class Sim {
     this.wreckT = 0;
     this.idleT = 0;
     this.ambushKillT = 0;
+    this.snarlT = 0;
     this.ambush = null;
     this.level = LEVELS[0];
     this.levelFlash = 0;
@@ -371,7 +379,7 @@ export class Sim {
     const snap: HudSnap = {
       mode: this.mode,
       score: Math.floor(this.score),
-      distance: Math.floor(this.player.y / 18),
+      distance: worldMiles(this.player.y),
       high: this.high,
       horn: this.player.hornFlash > 0.05 ? 1 : 0,
       shield: this.player.steel && this.player.invuln > STEEL_WARN ? 1 : 0,
@@ -393,6 +401,7 @@ export class Sim {
       overReason: this.overReason,
       ambush: this.ambush ? (this.ambush.phase === "lunge" ? 2 : 1) : 0,
       mix: this.mix,
+      stats: this.stats,
     };
     const key = JSON.stringify(snap);
     if (key === this.lastHud) return;
@@ -753,6 +762,7 @@ export class Sim {
           this.combo += 1;
           const pts = 40 + this.combo * 12;
           this.score += pts;
+          this.stats = { ...this.stats, near: this.stats.near + 1 };
           this.floaters.push({ x: a.x, y: a.y, text: `NEAR +${pts}`, life: 0.8 });
         }
       }
@@ -776,6 +786,10 @@ export class Sim {
     this.audio.pickup();
     this.combo = 0;
     const p = this.player;
+    this.stats = {
+      ...this.stats,
+      pickups: { ...this.stats.pickups, [k.kind]: this.stats.pickups[k.kind] + 1 },
+    };
     if (k.kind === "coffee") {
       p.invuln = SHIELD_TIME;
       p.steel = true;
@@ -806,6 +820,7 @@ export class Sim {
   private blowHorn() {
     const p = this.player;
     p.hornFlash = 0.45;
+    this.stats = { ...this.stats, honks: this.stats.honks + 1 };
     this.floaters.push({ x: p.x, y: p.y + 70, text: "HONK", life: 0.55 });
     if (p.hornCd > 0) return;
     p.hornCd = HORN_COOLDOWN;
@@ -843,6 +858,17 @@ export class Sim {
       this.burst(a.x, a.y, "leaf", 8);
       this.audio.thud();
       this.combo = 0;
+      const pair = this.stats.hits[a.kind];
+      this.stats = {
+        ...this.stats,
+        hits: {
+          ...this.stats.hits,
+          [a.kind]: {
+            body: pair.body + (p.steel || shielded ? 0 : 1),
+            steel: pair.steel + (p.steel ? 1 : 0),
+          },
+        },
+      };
       if (shielded) {
         this.shake = Math.min(1, this.shake + 0.28);
         this.hitstop = 0.03;
@@ -898,6 +924,7 @@ export class Sim {
     }
     if (p.speed > STOP_EPS) {
       this.idleT = 0;
+      this.snarlT = 0;
       this.ambush = null;
       return;
     }
@@ -907,13 +934,20 @@ export class Sim {
       const side = p.x >= 0 ? 1 : -1;
       const x = side * (ROAD_HALF + 58);
       this.ambush = { x, y: p.y - 8, fromX: x, t: 0, phase: "creep" };
+      this.audio.snarl(0.55);
+      this.snarlT = 0.7;
     }
     const a = this.ambush;
     a.t += dt;
     a.y = p.y - 6;
     const u = Math.min(1, (this.idleT - IDLE_GRACE) / IDLE_CREEP);
-    const e = u * u;
+    const e = u * 0.72 + u * u * 0.28;
     a.x = a.fromX + (p.x - a.fromX) * e;
+    this.snarlT -= dt;
+    if (this.snarlT <= 0 && a.phase === "creep") {
+      this.audio.snarl(0.45 + u * 0.4);
+      this.snarlT = 0.72 - u * 0.22;
+    }
     if (u >= 1) {
       a.phase = "lunge";
       a.x = p.x;
@@ -921,6 +955,7 @@ export class Sim {
       this.ambushKillT = IDLE_LUNGE;
       this.shake = 1;
       this.flash = 0.22;
+      this.audio.snarl(1);
       this.audio.thud();
       this.floaters.push({ x: p.x, y: p.y + 54, text: "RABID", life: 0.9 });
     }
