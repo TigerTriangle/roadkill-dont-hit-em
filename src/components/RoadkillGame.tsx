@@ -190,49 +190,75 @@ export function RoadkillGame() {
       {hud.mode === "play" && (
         <div
           className={cn(
-            "pointer-events-none absolute inset-x-0 z-10 px-4",
-            coarse ? "bottom-44" : "bottom-4 pb-[max(0px,env(safe-area-inset-bottom))]",
+            "absolute inset-x-0 z-10 flex flex-col",
+            coarse
+              ? "bottom-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+              : "bottom-4 pb-[max(0px,env(safe-area-inset-bottom))]",
           )}
         >
-          <div className="mx-auto flex max-w-xl items-end justify-between gap-3 rounded-lg bg-bg/55 px-3 py-2 backdrop-blur-sm">
-            <div className="min-w-0">
-              <p className="font-display text-3xl leading-none tracking-wide tabular-nums">
-                {hud.score.toString().padStart(5, "0")}
-              </p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted">
-                {hud.level === 0 ? "Lesson" : `Night ${hud.level}`} · {formatMiles(hud.distance)} mi ·{" "}
-                {hud.stopped ? "stopped" : `${hud.speed} mph`}
-              </p>
+          {coarse && (
+            <div className="flex items-end justify-between px-4 pb-2">
+              <HornButton
+                onDown={() => {
+                  const sim = simRef.current;
+                  if (!sim) return;
+                  sim.audio.unlock();
+                  sim.input.setTouchHorn(true);
+                }}
+                onUp={() => simRef.current?.input.setTouchHorn(false)}
+              />
+              <DrivePad
+                onChange={(steer, throttle, brake) => {
+                  const input = simRef.current?.input;
+                  if (!input) return;
+                  input.setTouchSteer(steer);
+                  input.setTouchThrottle(throttle);
+                  input.setTouchBrake(brake);
+                }}
+              />
             </div>
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Fuel</span>
-                <div className="h-2 w-24 overflow-hidden rounded-full bg-fg/20 sm:w-28">
-                  <div
-                    className={cn("h-full rounded-full", hud.lowFuel || hud.gas <= 0 ? "bg-danger" : "bg-fg")}
-                    style={{ width: `${Math.max(0, Math.min(100, Math.round(hud.gas * 100)))}%` }}
-                  />
-                </div>
+          )}
+          <div className="pointer-events-none px-4">
+            <div className="mx-auto flex max-w-xl items-end justify-between gap-3 rounded-lg bg-bg/55 px-3 py-2 backdrop-blur-sm">
+              <div className="min-w-0">
+                <p className="font-display text-3xl leading-none tracking-wide tabular-nums">
+                  {hud.score.toString().padStart(5, "0")}
+                </p>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                  {hud.level === 0 ? "Lesson" : `Night ${hud.level}`} · {formatMiles(hud.distance)} mi ·{" "}
+                  {hud.stopped ? "stopped" : `${hud.speed} mph`}
+                </p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Body</span>
-                <div className="flex gap-1.5">
-                  {Array.from({ length: 4 }).map((_, i) => {
-                    const hits = Math.round(hud.damage / 0.25);
-                    const remaining = 4 - hits;
-                    const intact = i < remaining;
-                    return (
-                      <span
-                        key={i}
-                        className={cn(
-                          "block size-2.5 rounded-full",
-                          !intact && "bg-fg/20",
-                          intact && remaining === 1 && "bg-danger",
-                          intact && remaining > 1 && "bg-fg",
-                        )}
-                      />
-                    );
-                  })}
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Fuel</span>
+                  <div className="h-2 w-24 overflow-hidden rounded-full bg-fg/20 sm:w-28">
+                    <div
+                      className={cn("h-full rounded-full", hud.lowFuel || hud.gas <= 0 ? "bg-danger" : "bg-fg")}
+                      style={{ width: `${Math.max(0, Math.min(100, Math.round(hud.gas * 100)))}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Body</span>
+                  <div className="flex gap-1.5">
+                    {Array.from({ length: 4 }).map((_, i) => {
+                      const hits = Math.round(hud.damage / 0.25);
+                      const remaining = 4 - hits;
+                      const intact = i < remaining;
+                      return (
+                        <span
+                          key={i}
+                          className={cn(
+                            "block size-2.5 rounded-full",
+                            !intact && "bg-fg/20",
+                            intact && remaining === 1 && "bg-danger",
+                            intact && remaining > 1 && "bg-fg",
+                          )}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -292,8 +318,8 @@ export function RoadkillGame() {
       )}
 
       {hud.mode === "play" && hud.ambush === 1 && hud.horn === 0 && (
-        <p className="pointer-events-none absolute left-1/2 top-1/3 z-10 -translate-x-1/2 font-display text-3xl font-semibold tracking-[0.2em] text-danger">
-          IN THE DITCH
+        <p className="pointer-events-none absolute left-1/2 top-1/3 z-10 -translate-x-1/2 text-center font-display text-2xl font-semibold tracking-[0.1em] text-danger sm:text-3xl sm:tracking-[0.16em]">
+          RABID RACCOON ALERT
         </p>
       )}
 
@@ -420,29 +446,6 @@ export function RoadkillGame() {
               />
             )}
           </div>
-        </div>
-      )}
-
-      {hud.mode === "play" && coarse && (
-        <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <HornButton
-            onDown={() => {
-              const sim = simRef.current;
-              if (!sim) return;
-              sim.audio.unlock();
-              sim.input.setTouchHorn(true);
-            }}
-            onUp={() => simRef.current?.input.setTouchHorn(false)}
-          />
-          <DrivePad
-            onChange={(steer, throttle, brake) => {
-              const input = simRef.current?.input;
-              if (!input) return;
-              input.setTouchSteer(steer);
-              input.setTouchThrottle(throttle);
-              input.setTouchBrake(brake);
-            }}
-          />
         </div>
       )}
     </div>
