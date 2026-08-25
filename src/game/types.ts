@@ -109,6 +109,7 @@ export interface HudSnap {
   tutorialDone: boolean;
   overReason: "crash" | "gas" | "raccoon" | null;
   ambush: 0 | 1 | 2;
+  mix: { horn: number; sfx: number; music: number; engine: number };
 }
 
 export type ControlsProbe = {

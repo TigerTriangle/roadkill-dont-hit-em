@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { loadAtlas, type Atlas } from "@/game/assets";
+import { MIX_DEFAULT } from "@/game/constants";
 import { Sim } from "@/game/engine";
 import { Renderer } from "@/game/render";
 import type { HudSnap } from "@/game/types";
@@ -40,6 +41,7 @@ const idleHud: HudSnap = {
   tutorialDone: false,
   overReason: null,
   ambush: 0,
+  mix: { ...MIX_DEFAULT },
 };
 
 export function RoadkillGame() {
@@ -50,6 +52,7 @@ export function RoadkillGame() {
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [coarse, setCoarse] = useState(false);
+  const [settings, setSettings] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia("(pointer: coarse)");
@@ -131,11 +134,13 @@ export function RoadkillGame() {
   }, []);
 
   const start = useCallback(() => {
+    setSettings(false);
     simRef.current?.drive(false);
     wrapRef.current?.focus();
   }, []);
 
   const startLesson = useCallback(() => {
+    setSettings(false);
     simRef.current?.drive(true);
     wrapRef.current?.focus();
   }, []);
@@ -333,30 +338,45 @@ export function RoadkillGame() {
                 high={hud.high}
                 onDrive={start}
                 onLesson={startLesson}
-                muted={hud.muted}
-                onMute={() => simRef.current?.toggleMute()}
+                onSettings={() => setSettings(true)}
                 ready={false}
               />
             )}
             {loadError && <p className="text-sm text-danger">{loadError}</p>}
-            {ready && hud.mode === "title" && (
+            {ready && hud.mode === "title" && !settings && (
               <TitleCard
                 high={hud.high}
                 onDrive={start}
                 onLesson={startLesson}
-                muted={hud.muted}
-                onMute={() => simRef.current?.toggleMute()}
+                onSettings={() => {
+                  simRef.current?.audio.unlock();
+                  setSettings(true);
+                }}
                 ready
               />
             )}
-            {hud.mode === "pause" && (
+            {hud.mode === "pause" && !settings && (
               <MenuCard
                 title="Paused"
                 body="The highway keeps. You don't have to."
                 primary="Resume"
                 onPrimary={() => simRef.current?.resume()}
-                secondary="Title"
-                onSecondary={() => simRef.current?.toTitle()}
+                secondary="Settings"
+                onSecondary={() => {
+                  simRef.current?.audio.unlock();
+                  setSettings(true);
+                }}
+                tertiary="Title"
+                onTertiary={() => simRef.current?.toTitle()}
+              />
+            )}
+            {settings && (hud.mode === "title" || hud.mode === "pause") && (
+              <SettingsCard
+                muted={hud.muted}
+                mix={hud.mix}
+                onMute={() => simRef.current?.toggleMute()}
+                onMix={(key, value) => simRef.current?.setMix(key, value)}
+                onBack={() => setSettings(false)}
               />
             )}
             {hud.mode === "over" && (
@@ -545,15 +565,13 @@ function TitleCard({
   high,
   onDrive,
   onLesson,
-  muted,
-  onMute,
+  onSettings,
   ready = true,
 }: {
   high: number;
   onDrive: () => void;
   onLesson: () => void;
-  muted: boolean;
-  onMute: () => void;
+  onSettings: () => void;
   ready?: boolean;
 }) {
   return (
@@ -561,7 +579,8 @@ function TitleCard({
       <div>
         <h1 className="sr-only">Roadkill: Don't Hit 'Em</h1>
         <p className="max-w-sm text-pretty text-sm leading-relaxed text-muted">
-          Late. Two-lane. Something always walks into the lights. Swerve, honk, or pay the body shop.
+          Late. Two-lane. Something always walks into the lights. Swerve, honk, or pay the price. Oh, and
+          don't stop too long. You've been warned.
         </p>
       </div>
       <Button
@@ -573,9 +592,14 @@ function TitleCard({
       >
         {ready ? "Drive" : "Loading"}
       </Button>
-      <Button variant="outline" className="w-full" onClick={onLesson} data-testid="lesson" disabled={!ready}>
-        Lesson
-      </Button>
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="outline" className="w-full" onClick={onLesson} data-testid="lesson" disabled={!ready}>
+          Lesson
+        </Button>
+        <Button variant="outline" className="w-full" onClick={onSettings} disabled={!ready} data-testid="settings">
+          Settings
+        </Button>
+      </div>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs uppercase tracking-[0.16em] text-muted">
         <dt>Steer</dt>
         <dd className="text-fg">A / D</dd>
@@ -586,9 +610,6 @@ function TitleCard({
         <dt>Best</dt>
         <dd className="text-fg tabular-nums">{high}</dd>
       </dl>
-      <button type="button" onClick={onMute} className="self-start text-xs uppercase tracking-[0.16em] text-muted">
-        {muted ? "Sound off" : "Sound on"}
-      </button>
     </div>
   );
 }
@@ -601,6 +622,8 @@ function MenuCard({
   onPrimary,
   secondary,
   onSecondary,
+  tertiary,
+  onTertiary,
 }: {
   title: string;
   body: string;
@@ -609,6 +632,8 @@ function MenuCard({
   onPrimary: () => void;
   secondary: string;
   onSecondary: () => void;
+  tertiary?: string;
+  onTertiary?: () => void;
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -630,7 +655,78 @@ function MenuCard({
         <Button variant="outline" className="w-full" onClick={onSecondary}>
           {secondary}
         </Button>
+        {tertiary && onTertiary && (
+          <Button variant="outline" className="w-full" onClick={onTertiary}>
+            {tertiary}
+          </Button>
+        )}
       </div>
+    </div>
+  );
+}
+
+function MixSlider({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-2">
+      <span className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+        {label}
+        <span className="tabular-nums text-fg">{Math.round(value * 100)}</span>
+      </span>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={Math.round(value * 100)}
+        onChange={(e) => onChange(Number(e.target.value) / 100)}
+        className="mix-slider"
+      />
+    </label>
+  );
+}
+
+function SettingsCard({
+  muted,
+  mix,
+  onMute,
+  onMix,
+  onBack,
+}: {
+  muted: boolean;
+  mix: HudSnap["mix"];
+  onMute: () => void;
+  onMix: (key: "horn" | "sfx" | "music" | "engine", value: number) => void;
+  onBack: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <h2 className="font-display text-5xl leading-none tracking-[0.06em]">Settings</h2>
+        <p className="mt-3 text-sm text-muted">Horn, banjo, crashes, and the rumble under the hood.</p>
+      </div>
+      <div className="flex flex-col gap-4">
+        <MixSlider label="Horn" value={mix.horn} onChange={(v) => onMix("horn", v)} />
+        <MixSlider label="Effects" value={mix.sfx} onChange={(v) => onMix("sfx", v)} />
+        <MixSlider label="Music" value={mix.music} onChange={(v) => onMix("music", v)} />
+        <MixSlider label="Engine" value={mix.engine} onChange={(v) => onMix("engine", v)} />
+      </div>
+      <button
+        type="button"
+        onClick={onMute}
+        className="self-start text-xs font-semibold uppercase tracking-[0.16em] text-muted"
+      >
+        {muted ? "Muted" : "Sound on"}
+      </button>
+      <Button variant="outline" className="w-full" onClick={onBack}>
+        Done
+      </Button>
     </div>
   );
 }

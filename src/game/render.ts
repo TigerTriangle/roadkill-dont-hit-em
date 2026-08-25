@@ -278,6 +278,9 @@ export class Renderer {
     const p = sim.player;
     const sx = originX + p.x;
     const sy = PLAYER_SCREEN_Y;
+    // Truck draws from sy-94 (hood) to sy+18 (tail). Lamps sit on the bumper.
+    const lampY = sy - 86;
+    const lampHalf = 9;
     const spread = 78;
     const reach = 360;
 
@@ -287,17 +290,22 @@ export class Renderer {
     ctx.fillRect(originX + ROAD_HALF + 8, 0, viewW, VH);
 
     ctx.globalCompositeOperation = "lighter";
-    const cone = ctx.createLinearGradient(sx, sy - 8, sx, sy - reach);
+    const cone = ctx.createLinearGradient(sx, lampY, sx, lampY - reach);
     cone.addColorStop(0, p.hornFlash > 0 ? "rgba(255,244,210,0.42)" : "rgba(232,163,23,0.28)");
     cone.addColorStop(0.4, "rgba(232,163,23,0.12)");
     cone.addColorStop(1, "rgba(232,163,23,0)");
     ctx.fillStyle = cone;
     ctx.beginPath();
-    ctx.moveTo(sx - 14, sy - 18);
-    ctx.lineTo(sx - spread, sy - reach);
-    ctx.lineTo(sx + spread, sy - reach);
-    ctx.lineTo(sx + 14, sy - 18);
+    ctx.moveTo(sx - lampHalf, lampY);
+    ctx.lineTo(sx - spread, lampY - reach);
+    ctx.lineTo(sx + spread, lampY - reach);
+    ctx.lineTo(sx + lampHalf, lampY);
     ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = p.hornFlash > 0 ? "rgba(255,244,210,0.7)" : "rgba(255,230,170,0.45)";
+    ctx.beginPath();
+    ctx.arc(sx - 7, lampY, 3.2, 0, Math.PI * 2);
+    ctx.arc(sx + 7, lampY, 3.2, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }

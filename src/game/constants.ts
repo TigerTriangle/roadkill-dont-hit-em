@@ -95,6 +95,15 @@ export function levelAt(y: number): LevelDef {
 export const SAVE_KEY = "roadkill-save-v1";
 export const SAVE_VERSION = 1;
 
+export const MIX_DEFAULT = {
+  horn: 0.48,
+  sfx: 0.75,
+  music: 0.32,
+  engine: 0.65,
+} as const;
+
+export type MixKey = keyof typeof MIX_DEFAULT;
+
 export const ANIMAL = {
   deer: { hw: 30, hh: 24, walk: 78, freezeChance: 0.62, drawW: 92, drawH: 78 },
   raccoon: { hw: 18, hh: 12, walk: 120, freezeChance: 0.08, drawW: 48, drawH: 34 },

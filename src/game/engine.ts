@@ -22,6 +22,8 @@ import {
   MAX_DAMAGE,
   MAX_FRAME_DT,
   MAX_GAS,
+  MIX_DEFAULT,
+  type MixKey,
   PICKUP_R,
   PLAYER_DRAG,
   PLAYER_HH,
@@ -41,7 +43,7 @@ import {
 } from "./constants";
 import { GameAudio } from "./audio";
 import { Input } from "./input";
-import { loadSave, writeSave } from "./save";
+import { loadSave, writeSave, type Mix } from "./save";
 import type {
   Ambush,
   Animal,
@@ -123,6 +125,7 @@ export class Sim {
   input = new Input();
   audio = new GameAudio();
   muted = false;
+  mix: Mix = { ...MIX_DEFAULT };
   onHud?: (h: HudSnap) => void;
   private lastHud = "";
   private attractSteer = 0;
@@ -134,7 +137,9 @@ export class Sim {
     this.high = save.highScore;
     this.muted = save.muted;
     this.tutorialDone = save.tutorialDone;
+    this.mix = { ...save.mix };
     this.audio.setMuted(this.muted);
+    this.audio.setMix(this.mix);
   }
 
   private freshPlayer(): Player {
@@ -216,6 +221,15 @@ export class Sim {
     this.muted = !this.muted;
     this.audio.setMuted(this.muted);
     this.persist();
+    this.emit();
+  }
+
+  setMix(key: MixKey, value: number) {
+    const v = Math.max(0, Math.min(1, value));
+    this.mix = { ...this.mix, [key]: v };
+    this.audio.setMix(this.mix);
+    this.persist();
+    this.emit();
   }
 
   drive(lesson = false) {
@@ -249,6 +263,7 @@ export class Sim {
       highScore: this.high,
       muted: this.muted,
       tutorialDone: this.tutorialDone,
+      mix: this.mix,
     });
   }
 
@@ -377,6 +392,7 @@ export class Sim {
       tutorialDone: this.tutorialDone,
       overReason: this.overReason,
       ambush: this.ambush ? (this.ambush.phase === "lunge" ? 2 : 1) : 0,
+      mix: this.mix,
     };
     const key = JSON.stringify(snap);
     if (key === this.lastHud) return;

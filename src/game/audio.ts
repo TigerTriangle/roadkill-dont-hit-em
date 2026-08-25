@@ -3,11 +3,15 @@ type HornVoice = {
   gain: GainNode;
 };
 
+import { MIX_DEFAULT } from "./constants";
+import type { Mix } from "./save";
+
 export class GameAudio {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private sfx: GainNode | null = null;
   private music: GainNode | null = null;
+  private hornGain: GainNode | null = null;
   private engineGain: GainNode | null = null;
   private engineFilter: BiquadFilterNode | null = null;
   private engineSrc: AudioBufferSourceNode | null = null;
@@ -18,6 +22,7 @@ export class GameAudio {
   private steelOn = false;
   private banjoNext = 0;
   private banjoStep = 0;
+  private mix: Mix = { ...MIX_DEFAULT };
   muted = false;
   unlocked = false;
 
@@ -30,16 +35,19 @@ export class GameAudio {
       this.master = this.ctx.createGain();
       this.sfx = this.ctx.createGain();
       this.music = this.ctx.createGain();
+      this.hornGain = this.ctx.createGain();
       this.engineGain = this.ctx.createGain();
       this.engineFilter = this.ctx.createBiquadFilter();
       this.master.gain.value = this.muted ? 0 : 0.78;
-      this.sfx.gain.value = 1;
+      this.sfx.gain.value = this.mix.sfx;
       this.music.gain.value = 0;
+      this.hornGain.gain.value = this.mix.horn;
       this.engineGain.gain.value = 0;
       this.engineFilter.type = "lowpass";
       this.engineFilter.frequency.value = 280;
       this.sfx.connect(this.master);
       this.music.connect(this.master);
+      this.hornGain.connect(this.master);
       this.engineFilter.connect(this.engineGain);
       this.engineGain.connect(this.master);
       this.master.connect(this.ctx.destination);
@@ -53,6 +61,18 @@ export class GameAudio {
     this.muted = v;
     if (this.master && this.ctx) {
       this.master.gain.setTargetAtTime(v ? 0 : 0.78, this.ctx.currentTime, 0.03);
+    }
+  }
+
+  setMix(mix: Mix) {
+    this.mix = { ...mix };
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    if (this.hornGain) this.hornGain.gain.setTargetAtTime(mix.horn, t, 0.04);
+    if (this.sfx) this.sfx.gain.setTargetAtTime(mix.sfx, t, 0.04);
+    if (this.music && this.steelOn) {
+      this.music.gain.cancelScheduledValues(t);
+      this.music.gain.setTargetAtTime(Math.max(0.0001, mix.music), t, 0.04);
     }
   }
 
@@ -101,6 +121,7 @@ export class GameAudio {
     if (playing && fuel <= 0) vol = moving > 0 ? 0.03 : 0.008;
     else if (playing && fuel < 0.2) vol *= 0.55 + 0.45 * Math.abs(Math.sin(t * 14));
     if (this.steelOn) vol *= 0.5;
+    vol *= this.mix.engine;
     this.engineGain.gain.setTargetAtTime(vol, t, 0.08);
     this.engineFilter.frequency.setTargetAtTime(140 + moving * 80 + n * 480, t, 0.08);
     this.engineOsc.frequency.setTargetAtTime(36 + moving * 12 + n * 70, t, 0.08);
@@ -120,7 +141,7 @@ export class GameAudio {
       this.banjoStep = 0;
       this.music.gain.cancelScheduledValues(t);
       this.music.gain.setValueAtTime(Math.max(this.music.gain.value, 0.0001), t);
-      this.music.gain.exponentialRampToValueAtTime(0.72, t + 0.06);
+      this.music.gain.exponentialRampToValueAtTime(Math.max(0.0001, this.mix.music), t + 0.06);
       this.strumSteel(t + 0.02);
     } else if (!on && this.steelOn) {
       this.music.gain.cancelScheduledValues(t);
@@ -173,7 +194,7 @@ export class GameAudio {
       twang.frequency.value = freq * 2;
       filt.type = "highpass";
       filt.frequency.value = bass ? 180 : 420;
-      const peak = bass ? 0.28 : 0.2;
+      const peak = bass ? 0.16 : 0.12;
       g.gain.setValueAtTime(0.0001, start);
       g.gain.exponentialRampToValueAtTime(peak, start + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, start + (bass ? 0.36 : 0.22));
@@ -212,14 +233,13 @@ export class GameAudio {
   }
 
   private ensureHornOn() {
-    if (!this.ctx || !this.sfx || this.hornVoices.length) return;
+    if (!this.ctx || !this.hornGain || this.hornVoices.length) return;
     const ctx = this.ctx;
     const t = ctx.currentTime;
-    // Dual-tone truck air horn (D#4 + G4), loud enough to cut the engine rumble.
     const tones: { freq: number; gain: number; type: OscillatorType }[] = [
-      { freq: 311.13, gain: 0.28, type: "square" },
-      { freq: 392.0, gain: 0.24, type: "square" },
-      { freq: 311.13 * 2, gain: 0.08, type: "sawtooth" },
+      { freq: 311.13, gain: 0.18, type: "square" },
+      { freq: 392.0, gain: 0.15, type: "square" },
+      { freq: 311.13 * 2, gain: 0.05, type: "sawtooth" },
     ];
     for (const tone of tones) {
       const osc = ctx.createOscillator();
@@ -233,7 +253,7 @@ export class GameAudio {
       gain.gain.exponentialRampToValueAtTime(tone.gain, t + 0.018);
       osc.connect(filt);
       filt.connect(gain);
-      gain.connect(this.sfx);
+      gain.connect(this.hornGain);
       osc.start(t);
       this.hornVoices.push({ osc, gain });
     }
