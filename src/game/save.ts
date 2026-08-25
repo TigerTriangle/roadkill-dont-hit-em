@@ -34,15 +34,19 @@ export function loadSave(): SaveData {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return { ...defaults, mix: { ...MIX_DEFAULT } };
     const parsed = JSON.parse(raw) as Partial<SaveData>;
+    const horn = clampMix(parsed.mix?.horn, MIX_DEFAULT.horn);
+    const music = clampMix(parsed.mix?.music, MIX_DEFAULT.music);
+    const oldFactory =
+      (horn === 0.48 && music === 0.32) || (horn === 0.18 && music === 0.1);
     return {
       version: SAVE_VERSION,
       highScore: Number(parsed.highScore) || 0,
       muted: Boolean(parsed.muted),
       tutorialDone: Boolean(parsed.tutorialDone),
       mix: {
-        horn: clampMix(parsed.mix?.horn, MIX_DEFAULT.horn),
+        horn: oldFactory ? MIX_DEFAULT.horn : horn,
         sfx: clampMix(parsed.mix?.sfx, MIX_DEFAULT.sfx),
-        music: clampMix(parsed.mix?.music, MIX_DEFAULT.music),
+        music: oldFactory ? MIX_DEFAULT.music : music,
         engine: clampMix(parsed.mix?.engine, MIX_DEFAULT.engine),
       },
     };

@@ -105,9 +105,9 @@ export const SAVE_KEY = "roadkill-save-v1";
 export const SAVE_VERSION = 1;
 
 export const MIX_DEFAULT = {
-  horn: 0.48,
+  horn: 0.05,
   sfx: 0.75,
-  music: 0.32,
+  music: 0.05,
   engine: 0.65,
 } as const;
 
