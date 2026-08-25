@@ -17,7 +17,7 @@ import { Sim } from "@/game/engine";
 import { Renderer } from "@/game/render";
 import type { HudSnap, RunStats } from "@/game/types";
 import { emptyRun } from "@/game/types";
-import { overImage, overTitle, shareDrive } from "@/game/share";
+import { badgeQuip, badgeRank, overImage, overTitle, shareDrive } from "@/game/share";
 import { cn } from "@/lib/utils";
 
 const idleHud: HudSnap = {
@@ -432,7 +432,7 @@ export function RoadkillGame() {
                 title={overTitle(hud.overReason)}
                 body={`${hud.score} pts · night ${hud.level} · ${formatMiles(hud.distance)} mi${hud.newBest ? " · new best" : ""}`}
                 image={overImage(hud.overReason) ?? undefined}
-                badge
+                badge={{ rank: badgeRank(hud.level), quip: badgeQuip(hud.overReason) }}
                 primary="Drive again"
                 onPrimary={start}
                 secondary="Stats"
@@ -671,7 +671,7 @@ function MenuCard({
   title: string;
   body: string;
   image?: string;
-  badge?: boolean;
+  badge?: { rank: string; quip: string };
   primary: string;
   onPrimary: () => void;
   secondary: string;
@@ -688,9 +688,10 @@ function MenuCard({
         <div className="relative overflow-hidden rounded-lg outline outline-1 -outline-offset-1 outline-fg/10">
           <img src={image} alt="" className="aspect-video w-full object-cover" />
           {badge && (
-            <span className="absolute right-0 top-0 bg-fg px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-bg">
-              Badge of honor
-            </span>
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-bg/90 to-transparent px-3 pb-2.5 pt-10">
+              <p className="font-display text-2xl leading-none tracking-[0.06em]">{badge.rank}</p>
+              <p className="mt-1 text-sm text-muted">{badge.quip}</p>
+            </div>
           )}
         </div>
       )}

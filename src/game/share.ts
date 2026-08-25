@@ -16,6 +16,22 @@ export function overImage(reason: HudSnap["overReason"]) {
   return null;
 }
 
+export function badgeRank(level: number) {
+  if (level <= 0) return "Learner's permit";
+  if (level === 1) return "Back-road beginner";
+  if (level === 2) return "Farm-road fledgling";
+  if (level === 3) return "County-line cowboy";
+  if (level === 4) return "State-route stud";
+  if (level === 5) return "Interstate icon";
+  return "Graveyard G.O.A.T.";
+}
+
+export function badgeQuip(reason: HudSnap["overReason"]) {
+  if (reason === "gas") return "Walked farther than you drove.";
+  if (reason === "raccoon") return "Parked like a buffet.";
+  return "Yum! Deer, fresh off the grill.";
+}
+
 export function shareText(
   score: number,
   level: number,
@@ -36,8 +52,12 @@ export function shareText(
     .map((k) => (stats.pickups[k] ? `${k} ${stats.pickups[k]}` : null))
     .filter(Boolean)
     .join(" · ");
+  const rank = badgeRank(level);
+  const quip = badgeQuip(reason);
   const lines = [
     "Roadkill: Don't Hit 'Em",
+    rank,
+    quip,
     `${overTitle(reason)} · ${score} pts · Night ${level} · ${formatMiles(distance)} mi`,
   ];
   if (hits) lines.push(`Hits: ${hits}`);
@@ -61,7 +81,8 @@ async function loadImageEl(src: string) {
 
 export async function buildBadgeBlob(
   imageSrc: string | null,
-  title: string,
+  rank: string,
+  quip: string,
   score: number,
   level: number,
   distance: number,
@@ -90,33 +111,23 @@ export async function buildBadgeBlob(
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.fillStyle = "#f3e6c8";
-    ctx.beginPath();
-    ctx.moveTo(W - 248, 0);
-    ctx.lineTo(W, 0);
-    ctx.lineTo(W, 52);
-    ctx.lineTo(W - 210, 52);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "#0b1020";
-    ctx.font = "600 22px Teko, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("BADGE OF HONOR", W - 112, 27);
-
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
     ctx.fillStyle = "#f3e6c8";
-    ctx.font = "600 42px Teko, sans-serif";
-    ctx.fillText("ROADKILL", 48, H - 118);
+    ctx.font = "600 36px Teko, sans-serif";
+    ctx.fillText("ROADKILL", 48, H - 148);
     ctx.fillStyle = "#9a917c";
-    ctx.font = "600 24px Teko, sans-serif";
-    ctx.fillText("DON'T HIT 'EM", 48, H - 84);
+    ctx.font = "600 22px Teko, sans-serif";
+    ctx.fillText("DON'T HIT 'EM", 48, H - 118);
     ctx.fillStyle = "#f3e6c8";
-    ctx.font = "600 52px Teko, sans-serif";
-    ctx.fillText(title.toUpperCase(), 48, H - 28);
+    ctx.font = "600 48px Teko, sans-serif";
+    ctx.fillText(rank.toUpperCase(), 48, H - 62);
+    ctx.fillStyle = "#9a917c";
+    ctx.font = "500 26px Barlow, sans-serif";
+    ctx.fillText(quip, 48, H - 26);
 
     ctx.textAlign = "right";
+    ctx.fillStyle = "#f3e6c8";
     ctx.font = "600 64px Teko, sans-serif";
     ctx.fillText(String(score), W - 48, H - 70);
     ctx.fillStyle = "#9a917c";
@@ -136,10 +147,16 @@ export async function shareDrive(opts: {
   reason: HudSnap["overReason"];
   stats: RunStats;
 }): Promise<"shared" | "copied" | "failed"> {
-  const title = overTitle(opts.reason);
   const text = shareText(opts.score, opts.level, opts.distance, opts.reason, opts.stats);
   const imgSrc = overImage(opts.reason);
-  const blob = await buildBadgeBlob(imgSrc, title, opts.score, opts.level, opts.distance);
+  const blob = await buildBadgeBlob(
+    imgSrc,
+    badgeRank(opts.level),
+    badgeQuip(opts.reason),
+    opts.score,
+    opts.level,
+    opts.distance,
+  );
   const file = blob ? new File([blob], "roadkill-badge.jpg", { type: "image/jpeg" }) : null;
 
   if (typeof navigator.share === "function") {
