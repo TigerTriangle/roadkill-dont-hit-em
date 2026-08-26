@@ -2,6 +2,7 @@ import {
   ANIMAL,
   PICKUP_DRAW,
   PLAYER_SCREEN_Y,
+  PROP_H,
   ROAD_HALF,
   STEEL_WARN,
   VH,
@@ -161,9 +162,8 @@ export class Renderer {
     for (const s of sim.scenery) {
       const sy = PLAYER_SCREEN_Y - (s.y - camY);
       if (sy < -160 || sy > VH + 40) continue;
-      const img = s.kind === "pine" ? atlas.pine : s.kind === "oak" ? atlas.oak : atlas.mailbox;
-      const h =
-        s.kind === "mailbox" ? 44 * s.scale : s.kind === "oak" ? 108 * s.scale : 128 * s.scale;
+      const img = atlas.props[s.kind];
+      const h = PROP_H[s.kind] * s.scale;
       const w = (img.width / img.height) * h;
       const sx = originX + s.x - w / 2;
       ctx.save();

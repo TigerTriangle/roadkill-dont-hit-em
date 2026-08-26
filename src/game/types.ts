@@ -2,7 +2,19 @@ export type Mode = "boot" | "title" | "play" | "pause" | "over";
 
 export type AnimalKind = "deer" | "raccoon" | "possum" | "turkey";
 export type PickupKind = "coffee" | "horseshoe" | "tire" | "gas";
-export type PropKind = "pine" | "oak" | "mailbox";
+export type PropKind =
+  | "pine"
+  | "oak"
+  | "mailbox"
+  | "shrub"
+  | "cow"
+  | "pig"
+  | "corn"
+  | "bale"
+  | "deersign"
+  | "datacenter"
+  | "grave"
+  | "scarecrow";
 
 export type HitPair = { body: number; steel: number };
 

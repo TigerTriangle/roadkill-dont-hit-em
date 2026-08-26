@@ -1,3 +1,5 @@
+import type { PropKind } from "./types";
+
 export type Sheet = {
   img: HTMLImageElement;
   cols: number;
@@ -18,6 +20,7 @@ export type Atlas = {
   oak: HTMLImageElement;
   mailbox: HTMLImageElement;
   pothole: HTMLImageElement;
+  props: Record<PropKind, HTMLImageElement>;
 };
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -49,6 +52,15 @@ export async function loadAtlas(): Promise<Atlas> {
     oak,
     mailbox,
     pothole,
+    shrub,
+    cow,
+    pig,
+    corn,
+    bale,
+    deersign,
+    datacenter,
+    grave,
+    scarecrow,
   ] = await Promise.all([
     loadImage("/sprites/truck.png?v=topdown1"),
     loadImage("/sprites/truck-guard.png?v=1"),
@@ -63,6 +75,15 @@ export async function loadAtlas(): Promise<Atlas> {
     loadImage("/sprites/oak.png"),
     loadImage("/sprites/mailbox.png"),
     loadImage("/sprites/pothole.png?v=bite1"),
+    loadImage("/sprites/shrub.png"),
+    loadImage("/sprites/cow.png"),
+    loadImage("/sprites/pig.png"),
+    loadImage("/sprites/corn.png"),
+    loadImage("/sprites/bale.png"),
+    loadImage("/sprites/deersign.png"),
+    loadImage("/sprites/datacenter.png"),
+    loadImage("/sprites/grave.png"),
+    loadImage("/sprites/scarecrow.png"),
   ]);
   return {
     truck: sheet(truck, 2, 2),
@@ -78,6 +99,20 @@ export async function loadAtlas(): Promise<Atlas> {
     oak,
     mailbox,
     pothole,
+    props: {
+      pine,
+      oak,
+      mailbox,
+      shrub,
+      cow,
+      pig,
+      corn,
+      bale,
+      deersign,
+      datacenter,
+      grave,
+      scarecrow,
+    },
   };
 }
 

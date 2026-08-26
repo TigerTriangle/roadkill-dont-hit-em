@@ -1,3 +1,5 @@
+import type { PropKind } from "./types";
+
 export const VW = 480;
 export const VH = 800;
 export const STEP = 1 / 60;
@@ -135,4 +137,29 @@ export function potholeGap(levelId: number) {
   if (levelId === 4) return 1180;
   if (levelId === 5) return 960;
   return 800;
+}
+
+export const PROP_H: Record<PropKind, number> = {
+  pine: 128,
+  oak: 108,
+  mailbox: 44,
+  shrub: 40,
+  cow: 54,
+  pig: 34,
+  corn: 56,
+  bale: 26,
+  deersign: 70,
+  datacenter: 92,
+  grave: 38,
+  scarecrow: 74,
+};
+
+export function landmarkGap(levelId: number) {
+  if (levelId === 1) return 820;
+  if (levelId === 2) return 2400;
+  if (levelId === 3) return 1500;
+  if (levelId === 4) return 5600;
+  if (levelId === 5) return 7800;
+  if (levelId === 6) return 1500;
+  return 99999;
 }

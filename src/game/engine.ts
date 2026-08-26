@@ -16,6 +16,7 @@ import {
   IDLE_LUNGE,
   INVULN_TIME,
   LANE,
+  landmarkGap,
   LEVELS,
   type LevelDef,
   levelAt,
@@ -61,6 +62,7 @@ import type {
   PickupKind,
   Player,
   Pothole,
+  PropKind,
   RunStats,
   Scenery,
 } from "./types";
@@ -118,6 +120,7 @@ export class Sim {
   nextSpawnY = 180;
   nextPropY = 40;
   nextPotholeY = 1400;
+  nextLandmarkY = 99999;
   nextId = 1;
   lastGasY = -400;
   overReason: "crash" | "gas" | "raccoon" | null = null;
@@ -260,6 +263,7 @@ export class Sim {
     this.player.py = end;
     this.nextSpawnY = end + 260;
     this.nextPotholeY = end + 1400;
+    this.nextLandmarkY = end + 480;
     this.lastGasY = end;
     this.tutorialSpawned.clear();
     this.hint = "";
@@ -320,6 +324,7 @@ export class Sim {
     this.nextSpawnY = attract ? 80 : 280;
     this.nextPropY = 20;
     this.nextPotholeY = attract ? 1e9 : 99999;
+    this.nextLandmarkY = attract ? 1e9 : 99999;
     this.nextId = 1;
     this.lastGasY = attract ? 99999 : -400;
     this.overReason = null;
@@ -504,6 +509,7 @@ export class Sim {
 
     this.spawnAhead();
     this.spawnPotholes();
+    this.spawnLandmarks();
     this.spawnProps();
     this.updateAnimals(dt);
     this.updatePickups(dt);
@@ -755,20 +761,60 @@ export class Sim {
     return true;
   }
 
-  private spawnProp(y: number) {
-    const side = this.rng() < 0.5 ? -1 : 1;
+  private spawnProp(y: number, kind?: PropKind, side?: number) {
+    const dir = side ?? (this.rng() < 0.5 ? -1 : 1);
     const kindRoll = this.rng();
-    const kind = kindRoll < 0.62 ? "pine" : kindRoll < 0.88 ? "oak" : "mailbox";
-    const edge = kind === "mailbox" ? ROAD_HALF + 42 : ROAD_HALF + 72 + this.rng() * 90;
+    const resolved: PropKind = kind ?? (kindRoll < 0.62 ? "pine" : kindRoll < 0.88 ? "oak" : "mailbox");
+    const edge =
+      resolved === "mailbox" || resolved === "deersign"
+        ? ROAD_HALF + 40
+        : resolved === "datacenter"
+          ? ROAD_HALF + 52
+          : resolved === "cow" || resolved === "pig" || resolved === "scarecrow"
+            ? ROAD_HALF + 68 + this.rng() * 24
+            : resolved === "corn" || resolved === "bale" || resolved === "shrub" || resolved === "grave"
+              ? ROAD_HALF + 58 + this.rng() * 30
+              : ROAD_HALF + 72 + this.rng() * 90;
+    const noFlip = resolved === "deersign" || resolved === "datacenter";
     this.scenery.push({
       id: this.nextId++,
-      kind,
-      x: side * edge,
+      kind: resolved,
+      x: dir * edge,
       y,
-      scale: 0.78 + this.rng() * 0.5,
-      flip: this.rng() < 0.5,
+      scale: resolved === "pine" || resolved === "oak" ? 0.78 + this.rng() * 0.5 : 0.9 + this.rng() * 0.18,
+      flip: noFlip ? false : this.rng() < 0.5,
       alive: true,
     });
+    return dir;
+  }
+
+  private spawnLandmarks() {
+    if (this.mode !== "play" || this.level.id === 0) return;
+    const p = this.player;
+    const look = p.y + 780;
+    if (this.nextLandmarkY < p.y - 20) this.nextLandmarkY = p.y + 90;
+    while (this.nextLandmarkY < look) {
+      const y = this.nextLandmarkY;
+      const id = this.level.id;
+      if (id === 1) {
+        this.spawnProp(y, "shrub");
+      } else if (id === 2) {
+        this.spawnProp(y, this.rng() < 0.5 ? "cow" : "pig");
+      } else if (id === 3) {
+        const side = this.spawnProp(y, this.rng() < 0.45 ? "corn" : "bale");
+        this.spawnProp(y + 26, "bale", side);
+        if (this.rng() < 0.55) this.spawnProp(y + 50, "bale", side);
+      } else if (id === 4) {
+        this.spawnProp(y, "deersign");
+      } else if (id === 5) {
+        this.spawnProp(y, "datacenter");
+      } else {
+        const side = this.spawnProp(y, this.rng() < 0.28 ? "scarecrow" : "grave");
+        if (this.rng() < 0.7) this.spawnProp(y + 32, "grave", side);
+        if (this.rng() < 0.4) this.spawnProp(y + 58, "grave", side);
+      }
+      this.nextLandmarkY += landmarkGap(id) * (0.85 + this.rng() * 0.4);
+    }
   }
 
   private spawnProps() {
@@ -1012,6 +1058,7 @@ export class Sim {
     }
     if (fromLesson && next.id > 0) {
       this.nextPotholeY = Math.max(this.nextPotholeY, this.player.y + 1400);
+      this.nextLandmarkY = Math.max(this.nextLandmarkY, this.player.y + 400);
     }
     if (quiet || this.mode !== "play") return;
     this.levelFlash = 1.7;
